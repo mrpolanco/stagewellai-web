@@ -1,0 +1,608 @@
+/* ==========================================================================
+   StagewellAI Theme System
+   Modern CSS Variables for theming with dark mode support
+   ========================================================================== */
+
+/* ==========================================================================
+   Color Themes
+   ========================================================================== */
+
+/* Default Theme - Indigo/Purple */
+:root,
+[data-theme="default"] {
+    --color-primary-50: #f5f3ff;
+    --color-primary-100: #ede9fe;
+    --color-primary-200: #ddd6fe;
+    --color-primary-300: #c4b5fd;
+    --color-primary-400: #a78bfa;
+    --color-primary-500: #8b5cf6;
+    --color-primary-600: #7c3aed;
+    --color-primary-700: #6d28d9;
+    --color-primary-800: #5b21b6;
+    --color-primary-900: #4c1d95;
+
+    --color-secondary-400: #60a5fa;
+    --color-secondary-500: #3b82f6;
+    --color-secondary-600: #2563eb;
+
+    --color-accent-400: #2dd4bf;
+    --color-accent-500: #14b8a6;
+    --color-accent-600: #0d9488;
+
+    --gradient-start: #6366f1;
+    --gradient-mid: #8b5cf6;
+    --gradient-end: #a855f7;
+
+    --theme-name: "Indigo Dream";
+    --theme-emoji: "💜";
+}
+
+/* Ocean Theme - Blue/Teal */
+[data-theme="ocean"] {
+    --color-primary-50: #ecfeff;
+    --color-primary-100: #cffafe;
+    --color-primary-200: #a5f3fc;
+    --color-primary-300: #67e8f9;
+    --color-primary-400: #22d3ee;
+    --color-primary-500: #06b6d4;
+    --color-primary-600: #0891b2;
+    --color-primary-700: #0e7490;
+    --color-primary-800: #155e75;
+    --color-primary-900: #164e63;
+
+    --color-secondary-400: #60a5fa;
+    --color-secondary-500: #3b82f6;
+    --color-secondary-600: #2563eb;
+
+    --color-accent-400: #34d399;
+    --color-accent-500: #10b981;
+    --color-accent-600: #059669;
+
+    --gradient-start: #0891b2;
+    --gradient-mid: #0284c7;
+    --gradient-end: #0369a1;
+
+    --theme-name: "Ocean Breeze";
+    --theme-emoji: "🌊";
+}
+
+/* Sunset Theme - Orange/Pink */
+[data-theme="sunset"] {
+    --color-primary-50: #fff7ed;
+    --color-primary-100: #ffedd5;
+    --color-primary-200: #fed7aa;
+    --color-primary-300: #fdba74;
+    --color-primary-400: #fb923c;
+    --color-primary-500: #f97316;
+    --color-primary-600: #ea580c;
+    --color-primary-700: #c2410c;
+    --color-primary-800: #9a3412;
+    --color-primary-900: #7c2d12;
+
+    --color-secondary-400: #fb7185;
+    --color-secondary-500: #f43f5e;
+    --color-secondary-600: #e11d48;
+
+    --color-accent-400: #fbbf24;
+    --color-accent-500: #f59e0b;
+    --color-accent-600: #d97706;
+
+    --gradient-start: #f97316;
+    --gradient-mid: #ec4899;
+    --gradient-end: #f43f5e;
+
+    --theme-name: "Sunset Glow";
+    --theme-emoji: "🌅";
+}
+
+/* Forest Theme - Green/Emerald */
+[data-theme="forest"] {
+    --color-primary-50: #ecfdf5;
+    --color-primary-100: #d1fae5;
+    --color-primary-200: #a7f3d0;
+    --color-primary-300: #6ee7b7;
+    --color-primary-400: #34d399;
+    --color-primary-500: #10b981;
+    --color-primary-600: #059669;
+    --color-primary-700: #047857;
+    --color-primary-800: #065f46;
+    --color-primary-900: #064e3b;
+
+    --color-secondary-400: #4ade80;
+    --color-secondary-500: #22c55e;
+    --color-secondary-600: #16a34a;
+
+    --color-accent-400: #a3e635;
+    --color-accent-500: #84cc16;
+    --color-accent-600: #65a30d;
+
+    --gradient-start: #059669;
+    --gradient-mid: #10b981;
+    --gradient-end: #14b8a6;
+
+    --theme-name: "Forest Calm";
+    --theme-emoji: "🌲";
+}
+
+/* Rose Theme - Pink/Rose */
+[data-theme="rose"] {
+    --color-primary-50: #fdf2f8;
+    --color-primary-100: #fce7f3;
+    --color-primary-200: #fbcfe8;
+    --color-primary-300: #f9a8d4;
+    --color-primary-400: #f472b6;
+    --color-primary-500: #ec4899;
+    --color-primary-600: #db2777;
+    --color-primary-700: #be185d;
+    --color-primary-800: #9d174d;
+    --color-primary-900: #831843;
+
+    --color-secondary-400: #c084fc;
+    --color-secondary-500: #a855f7;
+    --color-secondary-600: #9333ea;
+
+    --color-accent-400: #fb7185;
+    --color-accent-500: #f43f5e;
+    --color-accent-600: #e11d48;
+
+    --gradient-start: #ec4899;
+    --gradient-mid: #db2777;
+    --gradient-end: #a855f7;
+
+    --theme-name: "Rose Garden";
+    --theme-emoji: "🌸";
+}
+
+/* Midnight Theme - Dark Blue/Purple */
+[data-theme="midnight"] {
+    --color-primary-50: #eef2ff;
+    --color-primary-100: #e0e7ff;
+    --color-primary-200: #c7d2fe;
+    --color-primary-300: #a5b4fc;
+    --color-primary-400: #818cf8;
+    --color-primary-500: #6366f1;
+    --color-primary-600: #4f46e5;
+    --color-primary-700: #4338ca;
+    --color-primary-800: #3730a3;
+    --color-primary-900: #312e81;
+
+    --color-secondary-400: #a78bfa;
+    --color-secondary-500: #8b5cf6;
+    --color-secondary-600: #7c3aed;
+
+    --color-accent-400: #c084fc;
+    --color-accent-500: #a855f7;
+    --color-accent-600: #9333ea;
+
+    --gradient-start: #312e81;
+    --gradient-mid: #4f46e5;
+    --gradient-end: #6366f1;
+
+    --theme-name: "Midnight";
+    --theme-emoji: "🌙";
+}
+
+/* ==========================================================================
+   Light/Dark Mode Variables
+   ========================================================================== */
+
+:root,
+[data-mode="light"] {
+    --bg-base: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-surface-hover: #f8fafc;
+    --bg-surface-elevated: #ffffff;
+    --bg-muted: #f1f5f9;
+
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --text-inverse: #ffffff;
+
+    --border-default: #e2e8f0;
+    --border-muted: #f1f5f9;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(255, 255, 255, 0.3);
+    --glass-shadow: rgba(0, 0, 0, 0.05);
+
+    --wavy-bg-1: rgba(99, 102, 241, 0.05);
+    --wavy-bg-2: rgba(139, 92, 246, 0.03);
+    --wavy-bg-3: rgba(20, 184, 166, 0.02);
+}
+
+[data-mode="dark"] {
+    --bg-base: #0f172a;
+    --bg-surface: #1e293b;
+    --bg-surface-hover: #334155;
+    --bg-surface-elevated: #1e293b;
+    --bg-muted: #334155;
+
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-muted: #64748b;
+    --text-inverse: #0f172a;
+
+    --border-default: #334155;
+    --border-muted: #1e293b;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.3);
+
+    --glass-bg: rgba(30, 41, 59, 0.8);
+    --glass-border: rgba(51, 65, 85, 0.5);
+    --glass-shadow: rgba(0, 0, 0, 0.3);
+
+    --wavy-bg-1: rgba(99, 102, 241, 0.08);
+    --wavy-bg-2: rgba(139, 92, 246, 0.05);
+    --wavy-bg-3: rgba(20, 184, 166, 0.03);
+}
+
+/* ==========================================================================
+   Base Styles
+   ========================================================================== */
+
+body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Wavy Background */
+.bg-wavy {
+    background-color: var(--bg-base);
+    background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%236366f1' fill-opacity='0.05' d='M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,122.7C672,117,768,139,864,154.7C960,171,1056,181,1152,165.3C1248,149,1344,107,1392,85.3L1440,64L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E"),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%238b5cf6' fill-opacity='0.03' d='M0,224L48,208C96,192,192,160,288,154.7C384,149,480,171,576,192C672,213,768,235,864,229.3C960,224,1056,192,1152,176C1248,160,1344,160,1392,160L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E");
+    background-position: bottom;
+    background-repeat: no-repeat;
+    background-size: 100% auto;
+}
+
+/* ==========================================================================
+   Component Styles
+   ========================================================================== */
+
+/* Glass Card */
+.card-glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-md), 0 0 0 1px var(--glass-shadow);
+    border-radius: 1rem;
+    transition: all 0.2s ease;
+}
+
+.card-glass:hover {
+    box-shadow: var(--shadow-lg), 0 0 0 1px var(--glass-shadow);
+    transform: translateY(-1px);
+}
+
+/* Surface Card */
+.card-surface {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    box-shadow: var(--shadow-sm);
+    border-radius: 1rem;
+    transition: all 0.2s ease;
+}
+
+.card-surface:hover {
+    box-shadow: var(--shadow-md);
+}
+
+/* Primary Gradient */
+.bg-gradient-primary {
+    background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-mid) 50%, var(--gradient-end) 100%);
+}
+
+/* Text Colors */
+.text-theme-primary {
+    color: var(--color-primary-600);
+}
+
+[data-mode="dark"] .text-theme-primary {
+    color: var(--color-primary-400);
+}
+
+.text-theme-secondary {
+    color: var(--text-secondary);
+}
+
+.text-theme-muted {
+    color: var(--text-muted);
+}
+
+/* Sidebar Styles */
+.sidebar-glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-right: 1px solid var(--border-default);
+}
+
+.sidebar-item {
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    color: var(--text-secondary);
+    transition: all 0.15s ease;
+}
+
+.sidebar-item:hover {
+    background: var(--bg-muted);
+    color: var(--text-primary);
+}
+
+.sidebar-item.active {
+    background: linear-gradient(135deg, var(--color-primary-50), var(--color-primary-100));
+    color: var(--color-primary-700);
+    font-weight: 500;
+}
+
+[data-mode="dark"] .sidebar-item.active {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.1));
+    color: var(--color-primary-300);
+}
+
+/* Buttons */
+.btn-primary {
+    background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-600));
+    color: white;
+    padding: 0.625rem 1.25rem;
+    border-radius: 0.75rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--color-primary-600), var(--color-primary-700));
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    transition: all 0.15s ease;
+}
+
+.btn-ghost:hover {
+    background: var(--bg-muted);
+    color: var(--text-primary);
+}
+
+/* Badges */
+.badge-primary {
+    background: var(--color-primary-100);
+    color: var(--color-primary-700);
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+[data-mode="dark"] .badge-primary {
+    background: rgba(99, 102, 241, 0.2);
+    color: var(--color-primary-300);
+}
+
+/* Progress Rings */
+.ring-primary {
+    stroke: var(--color-primary-500);
+}
+
+.ring-secondary {
+    stroke: var(--color-secondary-500);
+}
+
+.ring-accent {
+    stroke: var(--color-accent-500);
+}
+
+/* Inputs */
+.input-themed {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    color: var(--text-primary);
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem;
+    transition: all 0.2s ease;
+}
+
+.input-themed:focus {
+    border-color: var(--color-primary-500);
+    box-shadow: 0 0 0 3px var(--color-primary-100);
+    outline: none;
+}
+
+[data-mode="dark"] .input-themed:focus {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+/* ==========================================================================
+   Animations
+   ========================================================================== */
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse-soft {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+}
+
+@keyframes confetti {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(-100px) rotate(720deg); opacity: 0; }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.4s ease-out;
+}
+
+.animate-slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+.animate-pulse-soft {
+    animation: pulse-soft 3s ease-in-out infinite;
+}
+
+/* Celebration confetti */
+.confetti {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    animation: confetti 1.5s ease-out forwards;
+    pointer-events: none;
+    z-index: 9999;
+}
+
+/* ==========================================================================
+   Theme Picker Styles
+   ========================================================================== */
+
+.theme-picker {
+    position: relative;
+}
+
+.theme-picker-dropdown {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 0.5rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: 1rem;
+    box-shadow: var(--shadow-xl);
+    padding: 1rem;
+    min-width: 280px;
+    z-index: 100;
+}
+
+.theme-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.theme-option:hover {
+    background: var(--bg-muted);
+}
+
+.theme-option.active {
+    background: var(--color-primary-50);
+}
+
+[data-mode="dark"] .theme-option.active {
+    background: rgba(99, 102, 241, 0.15);
+}
+
+.theme-swatch {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+}
+
+/* Dark Mode Toggle */
+.dark-mode-toggle {
+    width: 3rem;
+    height: 1.75rem;
+    background: var(--bg-muted);
+    border-radius: 9999px;
+    padding: 0.125rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.dark-mode-toggle::after {
+    content: '';
+    position: absolute;
+    width: 1.5rem;
+    height: 1.5rem;
+    background: white;
+    border-radius: 50%;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.3s ease;
+    left: 0.125rem;
+    top: 0.125rem;
+}
+
+[data-mode="dark"] .dark-mode-toggle {
+    background: var(--color-primary-600);
+}
+
+[data-mode="dark"] .dark-mode-toggle::after {
+    transform: translateX(1.25rem);
+}
+
+/* ==========================================================================
+   Utility Classes
+   ========================================================================== */
+
+.border-themed {
+    border-color: var(--border-default);
+}
+
+.bg-themed {
+    background-color: var(--bg-surface);
+}
+
+.bg-themed-muted {
+    background-color: var(--bg-muted);
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+
+@media print {
+    .sidebar-glass,
+    .theme-picker,
+    .dark-mode-toggle {
+        display: none !important;
+    }
+
+    body {
+        background: white !important;
+        color: black !important;
+    }
+}

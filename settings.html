@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stagewell AI - Settings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="theme.css">
+    <script src="shared.js"></script>
+
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('stagewell-theme') || 'default';
+            const savedModePreference = localStorage.getItem('stagewell-mode-preference') || 'light';
+
+            // Handle system preference
+            if (savedModePreference === 'system') {
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.documentElement.setAttribute('data-mode', prefersDark ? 'dark' : 'light');
+            } else {
+                document.documentElement.setAttribute('data-mode', savedModePreference);
+            }
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        })();
+    </script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe',
+                            300: '#c4b5fd', 400: '#a78bfa', 500: '#8b5cf6',
+                            600: '#7c3aed', 700: '#6d28d9',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-wavy font-sans antialiased min-h-screen transition-colors duration-300"
+      x-data="settingsPage()">
+
+    <!-- AUTH SCREEN -->
+    <div x-show="!session" class="min-h-screen flex items-center justify-center p-4">
+        <div class="max-w-md w-full card-glass overflow-hidden animate-fade-in">
+            <div class="bg-gradient-primary p-8 text-center relative overflow-hidden">
+                <div class="absolute inset-0 overflow-hidden">
+                    <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                    <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                </div>
+                <div class="relative">
+                    <h1 class="text-3xl font-bold text-white mb-2">Stagewell AI</h1>
+                    <p class="text-white/80">Settings</p>
+                </div>
+            </div>
+            <div class="p-8" style="background: var(--bg-surface);">
+                <p class="mb-6 text-center" style="color: var(--text-secondary);">Sign in to access settings.</p>
+                <div x-show="!emailSent">
+                    <button @click="signInWithGoogle"
+                            :disabled="loading"
+                            class="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl font-medium transition-all hover:shadow-md disabled:opacity-50"
+                            style="background: white; border: 1px solid #e5e7eb; color: #374151;">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        </svg>
+                        <span>Continue with Google</span>
+                    </button>
+                    <div class="flex items-center gap-4 my-6">
+                        <div class="flex-1 h-px" style="background: var(--border-default);"></div>
+                        <span class="text-xs font-medium" style="color: var(--text-muted);">or sign in with email</span>
+                        <div class="flex-1 h-px" style="background: var(--border-default);"></div>
+                    </div>
+                    <form @submit.prevent="signInWithMagicLink" class="space-y-4">
+                        <input type="email" x-model="loginEmail" required
+                               class="input-themed w-full"
+                               placeholder="Enter your email">
+                        <button type="submit" :disabled="loading"
+                                class="btn-primary w-full flex items-center justify-center gap-2 py-3 disabled:opacity-50">
+                            <span x-show="!loading">✨ Send Magic Link</span>
+                            <span x-show="loading" class="flex items-center gap-2">
+                                <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                                </svg>
+                                Sending...
+                            </span>
+                        </button>
+                    </form>
+                </div>
+                <div x-show="emailSent" x-cloak class="text-center animate-fade-in">
+                    <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl" style="background: var(--bg-muted);">✉️</div>
+                    <h3 class="text-lg font-bold mb-2" style="color: var(--text-primary);">Check your email</h3>
+                    <p class="text-sm mb-6" style="color: var(--text-secondary);">We sent a magic link to <strong x-text="loginEmail"></strong>.</p>
+                    <button @click="emailSent = false" class="font-medium hover:underline text-sm" style="color: var(--color-primary-500);">Try a different email</button>
+                </div>
+            </div>
+            <p class="text-xs text-center py-4" style="color: var(--text-muted); background: var(--bg-surface);">
+                Securely connected via Supabase Auth
+            </p>
+        </div>
+    </div>
+
+    <!-- MAIN LAYOUT -->
+    <div x-show="session" x-cloak class="min-h-screen flex flex-col lg:flex-row">
+
+        <!-- SIDEBAR -->
+        <aside class="w-full lg:w-72 sidebar-glass flex-shrink-0 lg:min-h-screen">
+            <div class="p-6">
+                <a href="dashboard.html" class="block">
+                    <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-primary">Stagewell</h2>
+                    <p class="text-xs mt-1 uppercase tracking-wider" style="color: var(--text-muted);">Insight Center</p>
+                </a>
+            </div>
+            <nav class="px-4 pb-4 lg:pb-0 flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible scrollbar-hide">
+                <a href="dashboard.html" class="sidebar-item flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">📊</span>
+                    <span class="hidden lg:inline">Overview</span>
+                </a>
+                <a href="habits.html" class="sidebar-item flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">✅</span>
+                    <span class="hidden lg:inline">Habits & Goals</span>
+                    <span class="hidden lg:inline ml-auto badge-primary text-xs">Sync</span>
+                </a>
+                <a href="journal.html" class="sidebar-item flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">📓</span>
+                    <span class="hidden lg:inline">Journal</span>
+                    <span class="hidden lg:inline ml-auto text-xs px-2 py-0.5 rounded-full" style="background: var(--bg-muted); color: var(--text-muted);">E2E</span>
+                </a>
+                <a href="growth.html" class="sidebar-item flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">🌱</span>
+                    <span class="hidden lg:inline">Growth Path</span>
+                </a>
+                <a href="settings.html" class="sidebar-item active flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">⚙️</span>
+                    <span class="hidden lg:inline">Settings</span>
+                </a>
+            </nav>
+            <div class="hidden lg:block p-4 mt-auto" style="border-top: 1px solid var(--border-default);">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold shadow-lg">
+                        <span x-text="userEmail ? userEmail[0].toUpperCase() : 'U'"></span>
+                    </div>
+                    <div class="overflow-hidden flex-1">
+                        <p class="text-sm font-medium truncate" style="color: var(--text-primary);" x-text="userEmail"></p>
+                        <button @click="signOut" class="text-xs text-red-500 hover:underline">Sign Out</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+
+            <!-- HEADER -->
+            <div class="flex flex-col md:flex-row md:items-start justify-between mb-8 gap-4">
+                <div class="animate-fade-in">
+                    <p class="text-sm font-medium mb-1" style="color: var(--text-muted);" x-text="currentDateFormatted"></p>
+                    <h1 class="text-2xl md:text-3xl font-bold" style="color: var(--text-primary);">Settings</h1>
+                    <p class="mt-1" style="color: var(--text-secondary);">Manage your account and preferences</p>
+                </div>
+                <button @click="signOut" class="lg:hidden btn-ghost" style="color: var(--text-muted);">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="max-w-3xl space-y-6">
+
+                <!-- APPEARANCE SECTION -->
+                <div class="card-glass overflow-hidden animate-fade-in">
+                    <div class="p-5" style="border-bottom: 1px solid var(--border-default); background: linear-gradient(to right, var(--color-primary-50), transparent);">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: var(--color-primary-100);">
+                                <span class="text-xl">🎨</span>
+                            </div>
+                            <div>
+                                <h3 class="font-bold" style="color: var(--text-primary);">Appearance</h3>
+                                <p class="text-sm" style="color: var(--text-secondary);">Customize how Stagewell looks</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-5 space-y-6">
+
+                        <!-- Light/Dark Mode -->
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium" style="color: var(--text-primary);">Mode</p>
+                                    <p class="text-xs" style="color: var(--text-muted);">Choose light, dark, or sync with system</p>
+                                </div>
+                            </div>
+
+                            <!-- Mode Selector -->
+                            <div class="flex gap-2 p-1 rounded-xl" style="background: var(--bg-muted);">
+                                <button @click="setMode('light')"
+                                        class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all"
+                                        :class="modePreference === 'light' ? 'shadow-md' : ''"
+                                        :style="modePreference === 'light' ? 'background: var(--bg-surface); color: var(--text-primary);' : 'color: var(--text-muted);'">
+                                    <span class="text-lg">☀️</span>
+                                    <span>Light</span>
+                                </button>
+                                <button @click="setMode('dark')"
+                                        class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all"
+                                        :class="modePreference === 'dark' ? 'shadow-md' : ''"
+                                        :style="modePreference === 'dark' ? 'background: var(--bg-surface); color: var(--text-primary);' : 'color: var(--text-muted);'">
+                                    <span class="text-lg">🌙</span>
+                                    <span>Dark</span>
+                                </button>
+                                <button @click="setMode('system')"
+                                        class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all"
+                                        :class="modePreference === 'system' ? 'shadow-md' : ''"
+                                        :style="modePreference === 'system' ? 'background: var(--bg-surface); color: var(--text-primary);' : 'color: var(--text-muted);'">
+                                    <span class="text-lg">💻</span>
+                                    <span>System</span>
+                                </button>
+                            </div>
+
+                            <!-- Current Mode Indicator -->
+                            <p class="text-xs text-center" style="color: var(--text-muted);">
+                                <span x-show="modePreference === 'system'">
+                                    Following system preference: <strong x-text="systemPrefersDark ? 'Dark' : 'Light'"></strong>
+                                </span>
+                                <span x-show="modePreference !== 'system'">
+                                    Currently using <strong x-text="modePreference === 'dark' ? 'Dark' : 'Light'"></strong> mode
+                                </span>
+                            </p>
+                        </div>
+
+                        <div style="border-top: 1px solid var(--border-default);"></div>
+
+                        <!-- Color Theme -->
+                        <div class="space-y-3">
+                            <div>
+                                <p class="text-sm font-medium" style="color: var(--text-primary);">Color Theme</p>
+                                <p class="text-xs" style="color: var(--text-muted);">Pick your accent color</p>
+                            </div>
+
+                            <!-- Theme Grid -->
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                <template x-for="theme in themes" :key="theme.id">
+                                    <button @click="setTheme(theme.id)"
+                                            class="relative p-4 rounded-xl border-2 transition-all hover:scale-[1.02]"
+                                            :class="currentTheme === theme.id ? 'ring-2 ring-offset-2' : ''"
+                                            :style="currentTheme === theme.id
+                                                ? 'border-color: ' + theme.gradient[0] + '; --tw-ring-color: ' + theme.gradient[0] + ';'
+                                                : 'border-color: var(--border-default);'">
+                                        <!-- Theme Preview -->
+                                        <div class="flex items-center gap-3 mb-3">
+                                            <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl"
+                                                 :style="'background: linear-gradient(135deg, ' + theme.gradient[0] + ', ' + theme.gradient[1] + ')'">
+                                                <span x-text="theme.emoji" class="drop-shadow"></span>
+                                            </div>
+                                            <div class="text-left">
+                                                <p class="font-medium text-sm" style="color: var(--text-primary);" x-text="theme.name"></p>
+                                            </div>
+                                        </div>
+                                        <!-- Color Swatches -->
+                                        <div class="flex gap-1">
+                                            <div class="flex-1 h-2 rounded-full" :style="'background: ' + theme.gradient[0]"></div>
+                                            <div class="flex-1 h-2 rounded-full" :style="'background: ' + theme.gradient[1]"></div>
+                                        </div>
+                                        <!-- Selected Indicator -->
+                                        <div x-show="currentTheme === theme.id"
+                                             class="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs"
+                                             :style="'background: ' + theme.gradient[0]">
+                                            ✓
+                                        </div>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div style="border-top: 1px solid var(--border-default);"></div>
+
+                        <!-- Preview Card -->
+                        <div class="space-y-3">
+                            <p class="text-sm font-medium" style="color: var(--text-primary);">Preview</p>
+                            <div class="p-4 rounded-xl" style="background: var(--bg-muted);">
+                                <div class="flex items-center gap-3 mb-3">
+                                    <div class="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold">
+                                        S
+                                    </div>
+                                    <div>
+                                        <p class="font-medium" style="color: var(--text-primary);">Stagewell</p>
+                                        <p class="text-xs" style="color: var(--text-muted);">Your wellness companion</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button class="btn-primary text-sm px-3 py-1.5">Primary Button</button>
+                                    <button class="text-sm px-3 py-1.5 rounded-lg" style="background: var(--bg-surface); color: var(--text-secondary); border: 1px solid var(--border-default);">Secondary</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ACCOUNT SECTION -->
+                <div class="card-glass overflow-hidden animate-fade-in" style="animation-delay: 0.1s;">
+                    <div class="p-5" style="border-bottom: 1px solid var(--border-default); background: linear-gradient(to right, rgba(99, 102, 241, 0.05), transparent);">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(99, 102, 241, 0.1);">
+                                <span class="text-xl">👤</span>
+                            </div>
+                            <div>
+                                <h3 class="font-bold" style="color: var(--text-primary);">Account</h3>
+                                <p class="text-sm" style="color: var(--text-secondary);">Your profile and login details</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-5 space-y-4">
+                        <!-- Email -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl" style="background: var(--bg-muted);">
+                            <div>
+                                <p class="text-sm font-medium" style="color: var(--text-secondary);">Email Address</p>
+                                <p style="color: var(--text-primary);" x-text="userEmail"></p>
+                            </div>
+                            <span class="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full w-fit">Verified</span>
+                        </div>
+
+                        <!-- Profile -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl" style="background: var(--bg-muted);">
+                            <div class="flex items-center gap-4">
+                                <div class="w-16 h-16 rounded-full bg-gradient-primary flex items-center justify-center text-white text-2xl font-bold">
+                                    <span x-text="userEmail ? userEmail[0].toUpperCase() : 'U'"></span>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium" style="color: var(--text-secondary);">Profile Picture</p>
+                                    <p class="text-sm" style="color: var(--text-muted);">Auto-generated from your email</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Member Since -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl" style="background: var(--bg-muted);">
+                            <div>
+                                <p class="text-sm font-medium" style="color: var(--text-secondary);">Member Since</p>
+                                <p style="color: var(--text-primary);" x-text="memberSince"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PRIVACY & SECURITY -->
+                <div class="card-glass overflow-hidden animate-fade-in" style="animation-delay: 0.15s;">
+                    <div class="p-5" style="border-bottom: 1px solid var(--border-default); background: linear-gradient(to right, rgba(34, 197, 94, 0.05), transparent);">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                                <span class="text-xl">🔐</span>
+                            </div>
+                            <div>
+                                <h3 class="font-bold" style="color: var(--text-primary);">Privacy & Security</h3>
+                                <p class="text-sm" style="color: var(--text-secondary);">Your data protection settings</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-5 space-y-4">
+                        <!-- E2E Encryption Status -->
+                        <div class="p-4 bg-gradient-to-r from-green-50 to-teal-50 rounded-xl border border-green-100">
+                            <div class="flex items-start gap-4">
+                                <div class="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-2xl shadow-sm">
+                                    🔒
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <p class="font-semibold" style="color: var(--text-primary);">End-to-End Encryption</p>
+                                        <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Active</span>
+                                    </div>
+                                    <p class="text-sm mt-1" style="color: var(--text-secondary);">
+                                        Your journal entries are encrypted on your device. Only you can read them.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Export Data -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl" style="background: var(--bg-muted);">
+                            <div>
+                                <p class="text-sm font-medium" style="color: var(--text-secondary);">Export Your Data</p>
+                                <p class="text-sm" style="color: var(--text-muted);">Download all your data in JSON format</p>
+                            </div>
+                            <button @click="exportData" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap" style="background: var(--bg-surface); border: 1px solid var(--border-default); color: var(--text-primary);">
+                                Export Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NOTIFICATIONS -->
+                <div class="card-glass overflow-hidden animate-fade-in" style="animation-delay: 0.2s;">
+                    <div class="p-5" style="border-bottom: 1px solid var(--border-default); background: linear-gradient(to right, rgba(249, 115, 22, 0.05), transparent);">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                                <span class="text-xl">🔔</span>
+                            </div>
+                            <div>
+                                <h3 class="font-bold" style="color: var(--text-primary);">Notifications</h3>
+                                <p class="text-sm" style="color: var(--text-secondary);">Manage your notification preferences</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-5 space-y-4">
+                        <!-- Email Notifications -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl" style="background: var(--bg-muted);">
+                            <div>
+                                <p class="text-sm font-medium" style="color: var(--text-secondary);">Email Notifications</p>
+                                <p class="text-sm" style="color: var(--text-muted);">Weekly progress summaries</p>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" x-model="emailNotifications" class="sr-only peer">
+                                <div class="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"
+                                     :style="emailNotifications ? 'background: var(--color-primary-500);' : 'background: var(--border-default);'"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONNECTED DEVICES -->
+                <div class="card-glass overflow-hidden animate-fade-in" style="animation-delay: 0.25s;">
+                    <div class="p-5" style="border-bottom: 1px solid var(--border-default); background: linear-gradient(to right, rgba(59, 130, 246, 0.05), transparent);">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                                <span class="text-xl">📱</span>
+                            </div>
+                            <div>
+                                <h3 class="font-bold" style="color: var(--text-primary);">Connected Devices</h3>
+                                <p class="text-sm" style="color: var(--text-secondary);">Devices synced with your account</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-5 space-y-3">
+                        <!-- iOS App -->
+                        <div class="flex items-center gap-4 p-4 rounded-xl" style="background: var(--bg-muted);">
+                            <div class="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center text-white text-xl">
+                                📱
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-medium" style="color: var(--text-primary);">Stagewell iOS App</p>
+                                <p class="text-sm" style="color: var(--text-muted);">Primary device for journaling</p>
+                            </div>
+                            <span class="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full">Active</span>
+                        </div>
+
+                        <!-- Web Dashboard -->
+                        <div class="flex items-center gap-4 p-4 rounded-xl" style="background: var(--bg-muted);">
+                            <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white text-xl" style="background: linear-gradient(135deg, #14b8a6, #0891b2);">
+                                💻
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-medium" style="color: var(--text-primary);">Web Dashboard</p>
+                                <p class="text-sm" style="color: var(--text-muted);">This browser session</p>
+                            </div>
+                            <span class="badge-primary text-xs">Current</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUPPORT -->
+                <div class="card-glass overflow-hidden animate-fade-in" style="animation-delay: 0.3s;">
+                    <div class="p-5" style="border-bottom: 1px solid var(--border-default); background: linear-gradient(to right, rgba(251, 191, 36, 0.05), transparent);">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                                <span class="text-xl">💬</span>
+                            </div>
+                            <div>
+                                <h3 class="font-bold" style="color: var(--text-primary);">Support</h3>
+                                <p class="text-sm" style="color: var(--text-secondary);">Get help and share feedback</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-5 space-y-3">
+                        <a href="#" class="flex items-center justify-between p-4 rounded-xl transition-colors" style="background: var(--bg-muted);">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xl">📚</span>
+                                <span class="font-medium" style="color: var(--text-primary);">Help Center</span>
+                            </div>
+                            <svg class="w-5 h-5" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </a>
+                        <a href="#" class="flex items-center justify-between p-4 rounded-xl transition-colors" style="background: var(--bg-muted);">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xl">✉️</span>
+                                <span class="font-medium" style="color: var(--text-primary);">Contact Support</span>
+                            </div>
+                            <svg class="w-5 h-5" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </a>
+                        <a href="#" class="flex items-center justify-between p-4 rounded-xl transition-colors" style="background: var(--bg-muted);">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xl">⭐</span>
+                                <span class="font-medium" style="color: var(--text-primary);">Rate the App</span>
+                            </div>
+                            <svg class="w-5 h-5" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- DANGER ZONE -->
+                <div class="card-glass overflow-hidden animate-fade-in" style="animation-delay: 0.35s; border-color: rgba(239, 68, 68, 0.2);">
+                    <div class="p-5" style="border-bottom: 1px solid rgba(239, 68, 68, 0.2); background: linear-gradient(to right, rgba(239, 68, 68, 0.05), transparent);">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                                <span class="text-xl">⚠️</span>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-red-700">Danger Zone</h3>
+                                <p class="text-sm text-red-500">Irreversible actions</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-5 space-y-4">
+                        <!-- Sign Out All -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl" style="background: var(--bg-muted);">
+                            <div>
+                                <p class="text-sm font-medium" style="color: var(--text-secondary);">Sign Out Everywhere</p>
+                                <p class="text-sm" style="color: var(--text-muted);">Sign out from all devices</p>
+                            </div>
+                            <button class="px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap" style="background: var(--bg-surface); border: 1px solid var(--border-default); color: var(--text-primary);">
+                                Sign Out All
+                            </button>
+                        </div>
+
+                        <!-- Delete Account -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-red-50 rounded-xl border border-red-100">
+                            <div>
+                                <p class="text-sm font-medium text-red-700">Delete Account</p>
+                                <p class="text-sm text-red-500">Permanently delete your account and all data</p>
+                            </div>
+                            <button class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-medium text-white transition-colors whitespace-nowrap">
+                                Delete Account
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- App Version -->
+                <div class="text-center py-6 text-sm" style="color: var(--text-muted);">
+                    <p>Stagewell AI Web Dashboard v1.0.0</p>
+                    <p class="mt-1">Made with 💜 for your wellbeing</p>
+                </div>
+
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        function settingsPage() {
+            return {
+                // Merge shared data
+                ...sharedPageData('settings'),
+
+                // Page-specific state
+                memberSince: 'Loading...',
+                emailNotifications: true,
+                modePreference: localStorage.getItem('stagewell-mode-preference') || 'light',
+                systemPrefersDark: window.matchMedia('(prefers-color-scheme: dark)').matches,
+
+                async init() {
+                    // Listen for system preference changes
+                    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+                        this.systemPrefersDark = e.matches;
+                        if (this.modePreference === 'system') {
+                            this.applyMode();
+                        }
+                    });
+
+                    await this.initShared();
+                    if (this.session) {
+                        this.memberSince = new Date(this.session.user.created_at).toLocaleDateString('en-US', {
+                            month: 'long', day: 'numeric', year: 'numeric'
+                        });
+                    }
+
+                    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+                        this.session = session;
+                        if (session) {
+                            this.userEmail = session.user.email;
+                            this.memberSince = new Date(session.user.created_at).toLocaleDateString('en-US', {
+                                month: 'long', day: 'numeric', year: 'numeric'
+                            });
+                        }
+                    });
+                },
+
+                setMode(mode) {
+                    this.modePreference = mode;
+                    localStorage.setItem('stagewell-mode-preference', mode);
+                    this.applyMode();
+                },
+
+                applyMode() {
+                    let actualMode;
+                    if (this.modePreference === 'system') {
+                        actualMode = this.systemPrefersDark ? 'dark' : 'light';
+                    } else {
+                        actualMode = this.modePreference;
+                    }
+                    document.documentElement.setAttribute('data-mode', actualMode);
+                    localStorage.setItem('stagewell-mode', actualMode);
+                },
+
+                async exportData() {
+                    if (!this.session) return;
+
+                    try {
+                        const { data: entries } = await supabaseClient
+                            .from('mood_entries')
+                            .select('*')
+                            .order('created_at', { ascending: false });
+
+                        const { data: profile } = await supabaseClient
+                            .from('user_profiles')
+                            .select('*')
+                            .eq('id', this.session.user.id)
+                            .single();
+
+                        const exportData = {
+                            exported_at: new Date().toISOString(),
+                            user: {
+                                email: this.userEmail,
+                                created_at: this.session.user.created_at
+                            },
+                            profile: profile || {},
+                            mood_entries: entries || [],
+                            preferences: {
+                                theme: this.currentTheme,
+                                mode: this.modePreference
+                            },
+                            note: 'Journal entry content is end-to-end encrypted and can only be decrypted on your iOS device.'
+                        };
+
+                        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `stagewell-export-${new Date().toISOString().split('T')[0]}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    } catch (error) {
+                        alert('Failed to export data. Please try again.');
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

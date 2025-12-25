@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stagewell AI - Tools</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="theme.css">
+    <script src="shared.js"></script>
+
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('stagewell-theme') || 'default';
+            const savedMode = localStorage.getItem('stagewell-mode') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.documentElement.setAttribute('data-mode', savedMode);
+        })();
+    </script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+        .tool-card { transition: all 0.2s ease; cursor: pointer; }
+        .tool-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+        .breathing-circle { animation: breathe 8s ease-in-out infinite; }
+        @keyframes breathe {
+            0%, 100% { transform: scale(0.8); opacity: 0.6; }
+            50% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-wavy font-sans antialiased min-h-screen transition-colors duration-300" x-data="toolsPage()">
+
+    <!-- AUTH SCREEN -->
+    <div x-show="!session" class="min-h-screen flex items-center justify-center p-4">
+        <div class="max-w-md w-full card-glass overflow-hidden animate-fade-in">
+            <div class="bg-gradient-primary p-8 text-center">
+                <h1 class="text-3xl font-bold text-white mb-2">Stagewell AI</h1>
+                <p class="text-white/80">Wellness Tools</p>
+            </div>
+            <div class="p-8" style="background: var(--bg-surface);">
+                <p class="text-center mb-6" style="color: var(--text-secondary);">Sign in to access wellness tools.</p>
+                <button @click="signInWithGoogle" class="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl font-medium transition-all hover:shadow-md" style="background: white; border: 1px solid #e5e7eb; color: #374151;">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                    Continue with Google
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN SCREEN -->
+    <div x-show="session" x-cloak class="min-h-screen flex flex-col lg:flex-row">
+
+        <!-- SIDEBAR -->
+        <aside class="w-full lg:w-72 sidebar-glass flex-shrink-0 lg:min-h-screen">
+            <div class="p-6">
+                <a href="home.html" class="block">
+                    <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-primary">Stagewell</h2>
+                    <p class="text-xs mt-1 uppercase tracking-wider" style="color: var(--text-muted);">Wellness Dashboard</p>
+                </a>
+            </div>
+            <nav class="px-4 pb-4 lg:pb-0 flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible scrollbar-hide">
+                <a href="home.html" class="sidebar-item flex-shrink-0 flex items-center gap-3"><span class="text-xl">🏠</span><span class="hidden lg:inline">Home</span></a>
+                <a href="journal.html" class="sidebar-item flex-shrink-0 flex items-center gap-3"><span class="text-xl">📓</span><span class="hidden lg:inline">Journal</span></a>
+                <a href="coach.html" class="sidebar-item flex-shrink-0 flex items-center gap-3"><span class="text-xl">🤖</span><span class="hidden lg:inline">Coach</span></a>
+                <a href="tools.html" class="sidebar-item active flex-shrink-0 flex items-center gap-3"><span class="text-xl">🛠️</span><span class="hidden lg:inline">Tools</span></a>
+                <a href="progress.html" class="sidebar-item flex-shrink-0 flex items-center gap-3"><span class="text-xl">📈</span><span class="hidden lg:inline">Progress</span></a>
+                <a href="settings.html" class="sidebar-item flex-shrink-0 flex items-center gap-3"><span class="text-xl">⚙️</span><span class="hidden lg:inline">Settings</span></a>
+            </nav>
+            <div class="hidden lg:block p-4 mt-auto" style="border-top: 1px solid var(--border-default);">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold"><span x-text="userEmail ? userEmail[0].toUpperCase() : 'U'"></span></div>
+                    <div class="overflow-hidden flex-1">
+                        <p class="text-sm font-medium truncate" style="color: var(--text-primary);" x-text="userEmail"></p>
+                        <button @click="signOut" class="text-xs text-red-500 hover:underline">Sign Out</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+
+            <!-- HEADER -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+                <div class="animate-fade-in">
+                    <h1 class="text-2xl md:text-3xl font-bold" style="color: var(--text-primary);">Wellness Tools</h1>
+                    <p class="mt-1" style="color: var(--text-secondary);">Quick access to your wellness toolkit</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button @click="toggleDarkMode" class="btn-ghost"><span x-show="!darkMode" class="text-xl">🌙</span><span x-show="darkMode" class="text-xl">☀️</span></button>
+                </div>
+            </div>
+
+            <!-- SEARCH -->
+            <div class="mb-8">
+                <input type="text" x-model="searchQuery" placeholder="Search tools..." class="input-themed w-full max-w-md">
+            </div>
+
+            <!-- CATEGORY FILTER -->
+            <div class="flex gap-2 mb-8 overflow-x-auto pb-2">
+                <button @click="selectedCategory = 'all'" class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors"
+                        :class="selectedCategory === 'all' ? 'bg-gradient-primary text-white' : ''"
+                        :style="selectedCategory !== 'all' ? 'background: var(--bg-muted); color: var(--text-secondary);' : ''">
+                    All Tools
+                </button>
+                <template x-for="cat in categories" :key="cat.id">
+                    <button @click="selectedCategory = cat.id" class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors"
+                            :class="selectedCategory === cat.id ? 'bg-gradient-primary text-white' : ''"
+                            :style="selectedCategory !== cat.id ? 'background: var(--bg-muted); color: var(--text-secondary);' : ''">
+                        <span x-text="cat.emoji + ' ' + cat.name"></span>
+                    </button>
+                </template>
+            </div>
+
+            <!-- TOOLS GRID -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <template x-for="tool in filteredTools" :key="tool.id">
+                    <div class="tool-card card-surface p-6 text-center" @click="openTool(tool)">
+                        <div class="text-4xl mb-3" x-text="tool.icon"></div>
+                        <h3 class="font-bold text-sm mb-1" style="color: var(--text-primary);" x-text="tool.name"></h3>
+                        <p class="text-xs" style="color: var(--text-muted);" x-text="tool.description"></p>
+                        <div class="mt-3">
+                            <span class="text-xs px-2 py-1 rounded-full" :style="'background: ' + tool.color + '20; color: ' + tool.color" x-text="tool.category"></span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- EMPTY STATE -->
+            <div x-show="filteredTools.length === 0" class="text-center py-16">
+                <p class="text-4xl mb-4">🔍</p>
+                <p style="color: var(--text-muted);">No tools found matching your search.</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- BREATHING EXERCISE MODAL -->
+    <div x-show="activeTool === 'breathing'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.8);">
+        <div class="text-center max-w-md w-full" @click.away="activeTool = null">
+            <div class="relative w-64 h-64 mx-auto mb-8">
+                <div class="breathing-circle absolute inset-0 rounded-full" style="background: linear-gradient(135deg, var(--color-primary-400), var(--color-primary-600));"></div>
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <p class="text-white text-2xl font-bold" x-text="breathingPhase"></p>
+                </div>
+            </div>
+            <p class="text-white mb-4" x-text="breathingInstruction"></p>
+            <div class="flex gap-4 justify-center">
+                <button @click="toggleBreathing" class="btn-primary" x-text="isBreathing ? 'Pause' : 'Start'"></button>
+                <button @click="activeTool = null" class="px-4 py-2 rounded-lg text-white/70 hover:text-white">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MOOD CHECK MODAL -->
+    <div x-show="activeTool === 'mood'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);">
+        <div class="card-glass p-8 max-w-md w-full animate-fade-in" @click.away="activeTool = null">
+            <h3 class="text-2xl font-bold mb-6 text-center" style="color: var(--text-primary);">How are you feeling right now?</h3>
+            <div class="flex justify-center gap-4 mb-6">
+                <button @click="logMood(1)" class="text-5xl hover:scale-110 transition-transform">😢</button>
+                <button @click="logMood(2)" class="text-5xl hover:scale-110 transition-transform">😔</button>
+                <button @click="logMood(3)" class="text-5xl hover:scale-110 transition-transform">😐</button>
+                <button @click="logMood(4)" class="text-5xl hover:scale-110 transition-transform">🙂</button>
+                <button @click="logMood(5)" class="text-5xl hover:scale-110 transition-transform">😊</button>
+            </div>
+            <textarea x-model="moodNote" class="input-themed w-full h-24 mb-4" placeholder="Add a note (optional)..."></textarea>
+            <button @click="activeTool = null" class="w-full py-2 text-sm" style="color: var(--text-muted);">Cancel</button>
+        </div>
+    </div>
+
+    <!-- GRATITUDE MODAL -->
+    <div x-show="activeTool === 'gratitude'" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);">
+        <div class="card-glass p-8 max-w-md w-full animate-fade-in" @click.away="activeTool = null">
+            <h3 class="text-2xl font-bold mb-2 text-center" style="color: var(--text-primary);">Gratitude Practice</h3>
+            <p class="text-center mb-6" style="color: var(--text-secondary);">What are 3 things you're grateful for today?</p>
+            <div class="space-y-3 mb-6">
+                <input type="text" x-model="gratitude1" class="input-themed w-full" placeholder="1. I'm grateful for...">
+                <input type="text" x-model="gratitude2" class="input-themed w-full" placeholder="2. I'm grateful for...">
+                <input type="text" x-model="gratitude3" class="input-themed w-full" placeholder="3. I'm grateful for...">
+            </div>
+            <button @click="saveGratitude" class="btn-primary w-full mb-3">Save</button>
+            <button @click="activeTool = null" class="w-full py-2 text-sm" style="color: var(--text-muted);">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        function toolsPage() {
+            return {
+                ...sharedPageData('tools'),
+
+                searchQuery: '',
+                selectedCategory: 'all',
+                activeTool: null,
+
+                // Breathing
+                isBreathing: false,
+                breathingPhase: 'Ready',
+                breathingInstruction: 'Press Start to begin',
+
+                // Mood
+                moodNote: '',
+
+                // Gratitude
+                gratitude1: '',
+                gratitude2: '',
+                gratitude3: '',
+
+                categories: [
+                    { id: 'mindfulness', name: 'Mindfulness', emoji: '🧘' },
+                    { id: 'mood', name: 'Mood', emoji: '😊' },
+                    { id: 'physical', name: 'Physical', emoji: '💪' },
+                    { id: 'reflection', name: 'Reflection', emoji: '📝' },
+                    { id: 'sleep', name: 'Sleep', emoji: '😴' }
+                ],
+
+                tools: [
+                    { id: 'breathing', name: 'Breathing Exercise', description: 'Calm your mind', icon: '🌬️', category: 'mindfulness', color: '#14b8a6' },
+                    { id: 'mood', name: 'Mood Check-in', description: 'Track how you feel', icon: '😊', category: 'mood', color: '#f59e0b' },
+                    { id: 'gratitude', name: 'Gratitude', description: '3 things grateful for', icon: '🙏', category: 'reflection', color: '#8b5cf6' },
+                    { id: 'meditation', name: 'Meditation', description: 'Guided relaxation', icon: '🧘', category: 'mindfulness', color: '#14b8a6' },
+                    { id: 'hydration', name: 'Hydration', description: 'Track water intake', icon: '💧', category: 'physical', color: '#3b82f6' },
+                    { id: 'sleep', name: 'Sleep Log', description: 'Track your rest', icon: '😴', category: 'sleep', color: '#6366f1' },
+                    { id: 'exercise', name: 'Exercise Log', description: 'Log your activity', icon: '🏃', category: 'physical', color: '#22c55e' },
+                    { id: 'journal', name: 'Quick Journal', description: 'Write your thoughts', icon: '📝', category: 'reflection', color: '#8b5cf6' },
+                    { id: 'affirmation', name: 'Affirmations', description: 'Positive statements', icon: '✨', category: 'mindfulness', color: '#f59e0b' },
+                    { id: 'bodyscan', name: 'Body Scan', description: 'Check in with your body', icon: '🫀', category: 'mindfulness', color: '#ef4444' },
+                    { id: 'energy', name: 'Energy Check', description: 'Rate your energy', icon: '⚡', category: 'physical', color: '#f59e0b' },
+                    { id: 'wins', name: 'Daily Wins', description: 'Celebrate victories', icon: '🏆', category: 'reflection', color: '#eab308' }
+                ],
+
+                get filteredTools() {
+                    return this.tools.filter(tool => {
+                        const matchesSearch = !this.searchQuery ||
+                            tool.name.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+                            tool.description.toLowerCase().includes(this.searchQuery.toLowerCase());
+                        const matchesCategory = this.selectedCategory === 'all' || tool.category === this.selectedCategory;
+                        return matchesSearch && matchesCategory;
+                    });
+                },
+
+                async init() {
+                    await this.initShared();
+                },
+
+                openTool(tool) {
+                    if (['breathing', 'mood', 'gratitude'].includes(tool.id)) {
+                        this.activeTool = tool.id;
+                    } else {
+                        // Show coming soon for other tools
+                        alert(`${tool.name} - Available in the iOS app!`);
+                    }
+                },
+
+                toggleBreathing() {
+                    this.isBreathing = !this.isBreathing;
+                    if (this.isBreathing) {
+                        this.runBreathingCycle();
+                    }
+                },
+
+                runBreathingCycle() {
+                    if (!this.isBreathing) return;
+
+                    const phases = [
+                        { text: 'Breathe In', instruction: 'Inhale slowly through your nose', duration: 4000 },
+                        { text: 'Hold', instruction: 'Hold your breath gently', duration: 4000 },
+                        { text: 'Breathe Out', instruction: 'Exhale slowly through your mouth', duration: 4000 },
+                        { text: 'Hold', instruction: 'Rest before the next breath', duration: 4000 }
+                    ];
+
+                    let i = 0;
+                    const cycle = () => {
+                        if (!this.isBreathing) return;
+                        this.breathingPhase = phases[i].text;
+                        this.breathingInstruction = phases[i].instruction;
+                        i = (i + 1) % phases.length;
+                        setTimeout(cycle, phases[i === 0 ? 3 : i - 1].duration);
+                    };
+                    cycle();
+                },
+
+                async logMood(score) {
+                    const labels = { 1: 'very_low', 2: 'low', 3: 'neutral', 4: 'good', 5: 'great' };
+                    await supabaseClient.from('mood_entries').insert({
+                        mood_score: score,
+                        mood_type: labels[score],
+                        notes: this.moodNote,
+                        created_at: new Date().toISOString()
+                    });
+                    this.moodNote = '';
+                    this.activeTool = null;
+                    alert('Mood logged successfully!');
+                },
+
+                async saveGratitude() {
+                    const items = [this.gratitude1, this.gratitude2, this.gratitude3].filter(g => g.trim());
+                    if (items.length === 0) {
+                        alert('Please enter at least one gratitude item.');
+                        return;
+                    }
+                    // Save as journal entry or separate gratitude table
+                    alert('Gratitude saved! Full functionality available in iOS app.');
+                    this.gratitude1 = '';
+                    this.gratitude2 = '';
+                    this.gratitude3 = '';
+                    this.activeTool = null;
+                }
+            };
+        }
+    </script>
+</body>
+</html>

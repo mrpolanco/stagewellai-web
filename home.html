@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stagewell AI - Home</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="theme.css">
+    <script src="shared.js"></script>
+
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('stagewell-theme') || 'default';
+            const savedMode = localStorage.getItem('stagewell-mode') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.documentElement.setAttribute('data-mode', savedMode);
+        })();
+    </script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+
+        /* TodayRing Styles */
+        .today-ring-container { position: relative; width: 200px; height: 200px; }
+        .today-ring { transform: rotate(-90deg); }
+        .today-ring circle { fill: none; stroke-linecap: round; transition: stroke-dashoffset 0.5s ease; }
+        .ring-bg { stroke: var(--bg-muted); opacity: 0.3; }
+        .ring-mood { stroke: #14b8a6; }
+        .ring-tools { stroke: #f59e0b; }
+        .ring-journal { stroke: #8b5cf6; }
+
+        /* Ring segment click areas */
+        .ring-click-area { cursor: pointer; transition: opacity 0.2s; }
+        .ring-click-area:hover { opacity: 0.8; }
+
+        /* Flow card animations */
+        .flow-card { transition: all 0.2s ease; }
+        .flow-card:hover { transform: translateY(-2px); }
+
+        /* Quick action buttons */
+        .quick-action { transition: all 0.15s ease; }
+        .quick-action:hover { transform: scale(1.05); }
+
+        /* Habit checkbox */
+        .habit-check { transition: all 0.2s ease; }
+        .habit-check.checked { animation: checkPop 0.3s ease; }
+        @keyframes checkPop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+
+        /* Mood Slider */
+        .mood-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(to right, #ef4444, #f59e0b, #22c55e, #14b8a6, #8b5cf6);
+            outline: none;
+        }
+        .mood-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            border: 3px solid var(--color-primary-500);
+        }
+        .mood-slider::-moz-range-thumb {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            border: 3px solid var(--color-primary-500);
+        }
+
+        /* Impact factor chip */
+        .impact-chip {
+            transition: all 0.15s ease;
+        }
+        .impact-chip.selected {
+            background: var(--color-primary-500) !important;
+            color: white !important;
+        }
+    </style>
+</head>
+<body class="bg-wavy font-sans antialiased min-h-screen transition-colors duration-300" x-data="homePage()">
+
+    <!-- AUTH SCREEN -->
+    <div x-show="!session" class="min-h-screen flex items-center justify-center p-4">
+        <div class="max-w-md w-full card-glass overflow-hidden animate-fade-in">
+            <div class="bg-gradient-primary p-8 text-center relative overflow-hidden">
+                <div class="absolute inset-0 overflow-hidden">
+                    <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                    <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                </div>
+                <div class="relative">
+                    <h1 class="text-3xl font-bold text-white mb-2">Stagewell AI</h1>
+                    <p class="text-white/80">Your Wellness Dashboard</p>
+                </div>
+            </div>
+            <div class="p-8" style="background: var(--bg-surface);">
+                <p class="text-center mb-6" style="color: var(--text-secondary);">Sign in to access your personalized wellness dashboard.</p>
+                <div x-show="!emailSent">
+                    <button @click="signInWithGoogle" :disabled="loading"
+                            class="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl font-medium transition-all hover:shadow-md disabled:opacity-50"
+                            style="background: white; border: 1px solid #e5e7eb; color: #374151;">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        </svg>
+                        <span>Continue with Google</span>
+                    </button>
+                    <div class="flex items-center gap-4 my-6">
+                        <div class="flex-1 h-px" style="background: var(--border-default);"></div>
+                        <span class="text-xs font-medium" style="color: var(--text-muted);">or sign in with email</span>
+                        <div class="flex-1 h-px" style="background: var(--border-default);"></div>
+                    </div>
+                    <form @submit.prevent="signInWithMagicLink" class="space-y-4">
+                        <input type="email" x-model="loginEmail" required class="input-themed w-full" placeholder="Enter your email">
+                        <button type="submit" :disabled="loading" class="btn-primary w-full flex items-center justify-center gap-2 py-3 disabled:opacity-50">
+                            <span x-show="!loading">Send Magic Link</span>
+                            <span x-show="loading" class="flex items-center gap-2">
+                                <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                                Sending...
+                            </span>
+                        </button>
+                    </form>
+                </div>
+                <div x-show="emailSent" x-cloak class="text-center">
+                    <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl" style="background: var(--bg-muted);">✉️</div>
+                    <h3 class="text-lg font-bold mb-2" style="color: var(--text-primary);">Check your email</h3>
+                    <p class="text-sm mb-6" style="color: var(--text-secondary);">We sent a magic link to <strong x-text="loginEmail"></strong>.</p>
+                    <button @click="emailSent = false" class="font-medium hover:underline text-sm" style="color: var(--color-primary-500);">Try a different email</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <div x-show="session" x-cloak class="min-h-screen flex flex-col lg:flex-row">
+
+        <!-- SIDEBAR -->
+        <div id="shared-sidebar"></div>
+
+        <!-- MAIN CONTENT -->
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+
+            <!-- HEADER -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+                <div class="animate-fade-in">
+                    <p class="text-sm font-medium mb-1" style="color: var(--text-muted);" x-text="currentDateFormatted"></p>
+                    <h1 class="text-2xl md:text-3xl font-bold" style="color: var(--text-primary);" x-text="greeting + ', ' + userFirstName + '!'"></h1>
+                </div>
+                <div class="flex items-center gap-3">
+                    <!-- Dark Mode Toggle -->
+                    <button @click="toggleDarkMode" class="btn-ghost flex items-center gap-2" :title="darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
+                        <span x-show="!darkMode" class="text-xl">🌙</span>
+                        <span x-show="darkMode" class="text-xl">☀️</span>
+                    </button>
+                    <!-- Theme Picker -->
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" class="btn-ghost flex items-center gap-2 px-3 py-2 rounded-lg" style="background: var(--bg-muted);">
+                            <span x-text="themeEmoji" class="text-lg"></span>
+                            <span class="hidden sm:inline text-sm font-medium" style="color: var(--text-secondary);" x-text="themeName"></span>
+                        </button>
+                        <div x-show="open" @click.away="open = false" x-transition class="theme-picker-dropdown animate-fade-in">
+                            <p class="text-xs font-semibold uppercase tracking-wider mb-3" style="color: var(--text-muted);">Color Theme</p>
+                            <div class="space-y-1">
+                                <template x-for="t in themes" :key="t.id">
+                                    <button @click="setTheme(t.id); open = false" class="theme-option w-full" :class="{ 'active': currentTheme === t.id }">
+                                        <div class="theme-swatch" :style="'background: linear-gradient(135deg, ' + t.gradient[0] + ', ' + t.gradient[1] + ')'"><span x-text="t.emoji" class="drop-shadow"></span></div>
+                                        <div class="flex-1 text-left"><p class="font-medium text-sm" style="color: var(--text-primary);" x-text="t.name"></p></div>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Mobile Sign Out -->
+                    <button @click="signOut" class="lg:hidden btn-ghost" style="color: var(--text-muted);">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TOP SECTION: Today Ring + Quick Actions -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+
+                <!-- TODAY RING CARD -->
+                <div class="lg:col-span-1 card-glass p-6 flex flex-col items-center">
+                    <h3 class="text-lg font-bold mb-4" style="color: var(--text-primary);">Today's Progress</h3>
+                    <div class="today-ring-container mb-4">
+                        <svg class="today-ring w-full h-full" viewBox="0 0 200 200">
+                            <!-- Background rings -->
+                            <circle class="ring-bg" cx="100" cy="100" r="85" stroke-width="12"/>
+                            <circle class="ring-bg" cx="100" cy="100" r="70" stroke-width="12"/>
+                            <circle class="ring-bg" cx="100" cy="100" r="55" stroke-width="12"/>
+                            <!-- Progress rings (clickable) -->
+                            <circle class="ring-mood ring-click-area" cx="100" cy="100" r="85" stroke-width="12"
+                                    :stroke-dasharray="2 * Math.PI * 85"
+                                    :stroke-dashoffset="2 * Math.PI * 85 * (1 - moodProgress/100)"
+                                    @click="logMood()"/>
+                            <circle class="ring-tools ring-click-area" cx="100" cy="100" r="70" stroke-width="12"
+                                    :stroke-dasharray="2 * Math.PI * 70"
+                                    :stroke-dashoffset="2 * Math.PI * 70 * (1 - toolsProgress/100)"
+                                    @click="openConfiguredAction()"/>
+                            <circle class="ring-journal ring-click-area" cx="100" cy="100" r="55" stroke-width="12"
+                                    :stroke-dasharray="2 * Math.PI * 55"
+                                    :stroke-dashoffset="2 * Math.PI * 55 * (1 - journalProgress/100)"
+                                    @click="openJournalInApp()"/>
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <div class="text-center">
+                                <p class="text-3xl font-bold" style="color: var(--text-primary);" x-text="overallProgress + '%'"></p>
+                                <p class="text-xs" style="color: var(--text-muted);">Complete</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 text-xs">
+                        <button @click="logMood()" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                            <span class="w-3 h-3 rounded-full bg-teal-500"></span>
+                            <span style="color: var(--text-secondary);">Mood</span>
+                        </button>
+                        <button @click="openConfiguredAction()" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                            <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+                            <span style="color: var(--text-secondary);" x-text="configuredActionName || 'Action'"></span>
+                        </button>
+                        <button @click="openJournalInApp()" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                            <span class="w-3 h-3 rounded-full bg-purple-500"></span>
+                            <span style="color: var(--text-secondary);">Journal</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- QUICK ACTIONS + ACTIVE PATH -->
+                <div class="lg:col-span-2 space-y-4">
+                    <!-- Quick Actions -->
+                    <div class="card-glass p-6">
+                        <h3 class="text-lg font-bold mb-4" style="color: var(--text-primary);">Quick Actions</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <button @click="logMood()" class="quick-action flex flex-col items-center gap-2 p-4 rounded-xl" style="background: rgba(20, 184, 166, 0.1);">
+                                <span class="text-3xl">😊</span>
+                                <span class="text-sm font-medium" style="color: var(--text-primary);">Log Mood</span>
+                            </button>
+                            <button @click="openJournalInApp()" class="quick-action flex flex-col items-center gap-2 p-4 rounded-xl" style="background: rgba(139, 92, 246, 0.1);">
+                                <span class="text-3xl">📝</span>
+                                <span class="text-sm font-medium" style="color: var(--text-primary);">Journal</span>
+                                <span class="text-xs" style="color: var(--text-muted);">Opens App</span>
+                            </button>
+                            <button @click="openConfiguredAction()" class="quick-action flex flex-col items-center gap-2 p-4 rounded-xl" style="background: rgba(245, 158, 11, 0.1);">
+                                <span class="text-3xl" x-text="configuredActionIcon || '⚡'"></span>
+                                <span class="text-sm font-medium" style="color: var(--text-primary);" x-text="configuredActionName || 'Action'"></span>
+                            </button>
+                            <a href="progress.html" class="quick-action flex flex-col items-center gap-2 p-4 rounded-xl" style="background: rgba(59, 130, 246, 0.1);">
+                                <span class="text-3xl">📈</span>
+                                <span class="text-sm font-medium" style="color: var(--text-primary);">Progress</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Active Path Card -->
+                    <div class="card-glass p-4" x-show="activePath" @click="openPathInApp()">
+                        <div class="flex items-center gap-4 cursor-pointer hover:opacity-80 transition-opacity">
+                            <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                                 :style="'background: ' + (activePath?.color || 'var(--color-primary-100)')">
+                                <span x-text="activePath?.icon || '🛤️'"></span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-medium uppercase tracking-wider" style="color: var(--text-muted);">Active Path</p>
+                                <p class="font-semibold truncate" style="color: var(--text-primary);" x-text="activePath?.name || 'No active path'"></p>
+                                <p class="text-sm" style="color: var(--text-secondary);" x-text="activePath?.dayTitle || ''"></p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-lg font-bold" style="color: var(--color-primary-500);" x-text="activePath?.dayProgress || ''"></p>
+                                <p class="text-xs" style="color: var(--text-muted);">Tap to open app</p>
+                            </div>
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--text-muted);">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DAILY FLOWS (Habits) -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold" style="color: var(--text-primary);">Your Day</h2>
+                    <span class="text-sm" style="color: var(--text-muted);" x-text="habitsCompleted + '/' + totalHabits + ' complete'"></span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Morning Flow -->
+                    <div class="flow-card card-surface overflow-hidden">
+                        <div class="p-4 text-white" style="background: linear-gradient(135deg, #22c55e, #16a34a);">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">🌅</span>
+                                <div>
+                                    <h3 class="font-bold">Morning Flow</h3>
+                                    <p class="text-xs text-white/80" x-text="morningHabits.filter(h => isCompletedToday(h.id)).length + '/' + morningHabits.length + ' done'"></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-4 space-y-2">
+                            <template x-if="morningHabits.length === 0">
+                                <p class="text-sm text-center py-4" style="color: var(--text-muted);">No morning habits</p>
+                            </template>
+                            <template x-for="habit in morningHabits" :key="habit.id">
+                                <div class="flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors"
+                                     :style="isCompletedToday(habit.id) ? 'background: rgba(34, 197, 94, 0.1);' : ''"
+                                     @click="toggleHabit(habit)">
+                                    <div class="habit-check w-6 h-6 rounded-full flex items-center justify-center text-xs"
+                                         :class="isCompletedToday(habit.id) ? 'bg-green-500 text-white checked' : ''"
+                                         :style="!isCompletedToday(habit.id) ? 'border: 2px solid var(--border-default);' : ''">
+                                        <span x-show="isCompletedToday(habit.id)">✓</span>
+                                    </div>
+                                    <span class="text-sm flex-1" :class="isCompletedToday(habit.id) ? 'line-through' : ''"
+                                          :style="isCompletedToday(habit.id) ? 'color: var(--text-muted);' : 'color: var(--text-primary);'"
+                                          x-text="habit.title || habit.name"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Afternoon Flow -->
+                    <div class="flow-card card-surface overflow-hidden">
+                        <div class="p-4 text-white" style="background: linear-gradient(135deg, #a855f7, #9333ea);">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">☀️</span>
+                                <div>
+                                    <h3 class="font-bold">Afternoon Flow</h3>
+                                    <p class="text-xs text-white/80" x-text="afternoonHabits.filter(h => isCompletedToday(h.id)).length + '/' + afternoonHabits.length + ' done'"></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-4 space-y-2">
+                            <template x-if="afternoonHabits.length === 0">
+                                <p class="text-sm text-center py-4" style="color: var(--text-muted);">No afternoon habits</p>
+                            </template>
+                            <template x-for="habit in afternoonHabits" :key="habit.id">
+                                <div class="flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors"
+                                     :style="isCompletedToday(habit.id) ? 'background: rgba(168, 85, 247, 0.1);' : ''"
+                                     @click="toggleHabit(habit)">
+                                    <div class="habit-check w-6 h-6 rounded-full flex items-center justify-center text-xs"
+                                         :class="isCompletedToday(habit.id) ? 'bg-purple-500 text-white checked' : ''"
+                                         :style="!isCompletedToday(habit.id) ? 'border: 2px solid var(--border-default);' : ''">
+                                        <span x-show="isCompletedToday(habit.id)">✓</span>
+                                    </div>
+                                    <span class="text-sm flex-1" :class="isCompletedToday(habit.id) ? 'line-through' : ''"
+                                          :style="isCompletedToday(habit.id) ? 'color: var(--text-muted);' : 'color: var(--text-primary);'"
+                                          x-text="habit.title || habit.name"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Evening Flow -->
+                    <div class="flow-card card-surface overflow-hidden">
+                        <div class="p-4 text-white" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                            <div class="flex items-center gap-3">
+                                <span class="text-2xl">🌙</span>
+                                <div>
+                                    <h3 class="font-bold">Evening Flow</h3>
+                                    <p class="text-xs text-white/80" x-text="eveningHabits.filter(h => isCompletedToday(h.id)).length + '/' + eveningHabits.length + ' done'"></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-4 space-y-2">
+                            <template x-if="eveningHabits.length === 0">
+                                <p class="text-sm text-center py-4" style="color: var(--text-muted);">No evening habits</p>
+                            </template>
+                            <template x-for="habit in eveningHabits" :key="habit.id">
+                                <div class="flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors"
+                                     :style="isCompletedToday(habit.id) ? 'background: rgba(239, 68, 68, 0.1);' : ''"
+                                     @click="toggleHabit(habit)">
+                                    <div class="habit-check w-6 h-6 rounded-full flex items-center justify-center text-xs"
+                                         :class="isCompletedToday(habit.id) ? 'bg-red-500 text-white checked' : ''"
+                                         :style="!isCompletedToday(habit.id) ? 'border: 2px solid var(--border-default);' : ''">
+                                        <span x-show="isCompletedToday(habit.id)">✓</span>
+                                    </div>
+                                    <span class="text-sm flex-1" :class="isCompletedToday(habit.id) ? 'line-through' : ''"
+                                          :style="isCompletedToday(habit.id) ? 'color: var(--text-muted);' : 'color: var(--text-primary);'"
+                                          x-text="habit.title || habit.name"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Flexible/Anytime Habits -->
+                <div x-show="flexibleHabits.length > 0" class="mt-4">
+                    <div class="card-surface p-4">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="text-xl">🔄</span>
+                            <h3 class="font-bold" style="color: var(--text-primary);">Anytime</h3>
+                            <span class="text-xs" style="color: var(--text-muted);" x-text="flexibleHabits.filter(h => isCompletedToday(h.id)).length + '/' + flexibleHabits.length + ' done'"></span>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <template x-for="habit in flexibleHabits" :key="habit.id">
+                                <button @click="toggleHabit(habit)"
+                                        class="flex items-center gap-2 px-3 py-2 rounded-full text-sm transition-colors"
+                                        :style="isCompletedToday(habit.id) ? 'background: var(--color-primary-100); color: var(--color-primary-700);' : 'background: var(--bg-muted); color: var(--text-primary);'">
+                                    <span x-show="isCompletedToday(habit.id)">✓</span>
+                                    <span x-text="habit.title || habit.name"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BOTTOM SECTION: Goals + Recent Activity -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <!-- ACTIVE GOALS -->
+                <div class="card-glass p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold" style="color: var(--text-primary);">Active Goals</h3>
+                        <a href="progress.html" class="text-sm font-medium" style="color: var(--color-primary-500);">View All</a>
+                    </div>
+                    <div class="space-y-3">
+                        <template x-if="goals.length === 0">
+                            <p class="text-sm text-center py-8" style="color: var(--text-muted);">No active goals. Set some in the iOS app!</p>
+                        </template>
+                        <template x-for="goal in goals.slice(0, 3)" :key="goal.id">
+                            <div class="flex items-start gap-3 p-3 rounded-xl" style="background: var(--bg-muted);">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center text-lg" style="background: var(--color-primary-100);">🎯</div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium text-sm" style="color: var(--text-primary);" x-text="goal.title || goal.name"></p>
+                                    <p class="text-xs mt-1" style="color: var(--text-muted);" x-text="goal.target_date ? 'Due ' + new Date(goal.target_date).toLocaleDateString() : 'No deadline'"></p>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- RECENT MOOD -->
+                <div class="card-glass p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold" style="color: var(--text-primary);">Recent Moods</h3>
+                        <span class="text-sm" style="color: var(--text-muted);">Last 7 days</span>
+                    </div>
+                    <div class="flex justify-between items-end h-24 px-2">
+                        <template x-for="(mood, index) in recentMoods" :key="index">
+                            <div class="flex flex-col items-center gap-1">
+                                <div class="text-2xl" x-text="moodEmoji(mood.mood_score)"></div>
+                                <p class="text-xs" style="color: var(--text-muted);" x-text="formatDayName(mood.created_at)"></p>
+                            </div>
+                        </template>
+                        <template x-if="recentMoods.length === 0">
+                            <p class="text-sm text-center w-full py-8" style="color: var(--text-muted);">No mood data yet</p>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MOOD CHECK-IN MODAL (Apple Health Style) -->
+    <div x-show="showMoodModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" @click.self="showMoodModal = false">
+        <div class="card-glass p-6 max-w-md w-full animate-fade-in overflow-y-auto max-h-[90vh]">
+            <!-- Header -->
+            <div class="text-center mb-6">
+                <h3 class="text-xl font-bold" style="color: var(--text-primary);">How are you feeling?</h3>
+                <p class="text-sm mt-1" style="color: var(--text-secondary);">Rate your overall mood right now</p>
+            </div>
+
+            <!-- Animated Mood Emoji -->
+            <div class="text-center mb-6">
+                <div class="text-6xl mb-2 transition-transform" :style="'transform: scale(' + (0.8 + moodValue * 0.4) + ')'">
+                    <span x-text="moodEmoji(Math.round(moodValue))"></span>
+                </div>
+                <p class="text-lg font-semibold" :style="'color: ' + moodColor(moodValue)" x-text="moodLabel(moodValue)"></p>
+            </div>
+
+            <!-- Mood Slider -->
+            <div class="mb-6 px-2">
+                <input type="range" min="1" max="5" step="0.1" x-model="moodValue" class="mood-slider w-full">
+                <div class="flex justify-between text-xs mt-2" style="color: var(--text-muted);">
+                    <span>Very Unpleasant</span>
+                    <span>Very Pleasant</span>
+                </div>
+            </div>
+
+            <!-- Impact Factors (collapsible) -->
+            <div class="mb-6">
+                <button @click="showFactors = !showFactors" class="flex items-center justify-between w-full py-2">
+                    <span class="text-sm font-medium" style="color: var(--text-primary);">What's impacting your mood?</span>
+                    <svg class="w-5 h-5 transition-transform" :class="showFactors ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--text-muted);">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <div x-show="showFactors" x-collapse class="mt-3">
+                    <div class="flex flex-wrap gap-2">
+                        <template x-for="factor in impactFactors" :key="factor.id">
+                            <button @click="toggleFactor(factor.id)"
+                                    class="impact-chip px-3 py-1.5 rounded-full text-sm flex items-center gap-1"
+                                    :class="selectedFactors.includes(factor.id) ? 'selected' : ''"
+                                    :style="!selectedFactors.includes(factor.id) ? 'background: var(--bg-muted); color: var(--text-secondary);' : ''">
+                                <span x-text="factor.emoji"></span>
+                                <span x-text="factor.name"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Optional Note -->
+            <div class="mb-6">
+                <label class="text-sm font-medium mb-2 block" style="color: var(--text-primary);">Add a note (optional)</label>
+                <textarea x-model="moodNote" rows="2" class="input-themed w-full resize-none" placeholder="What's on your mind?"></textarea>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-3">
+                <button @click="showMoodModal = false" class="flex-1 py-3 rounded-xl font-medium" style="background: var(--bg-muted); color: var(--text-secondary);">
+                    Cancel
+                </button>
+                <button @click="submitMood()" class="flex-1 btn-primary py-3 font-medium" :disabled="savingMood">
+                    <span x-show="!savingMood">Log Mood</span>
+                    <span x-show="savingMood">Saving...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function homePage() {
+            return {
+                ...sharedPageData('home'),
+
+                // Data
+                habits: [],
+                habitCompletions: [],
+                goals: [],
+                recentMoods: [],
+                activePath: null,
+                configuredActionName: null,
+                configuredActionIcon: '⚡',
+                configuredActionType: null,
+
+                // Mood Modal State
+                showMoodModal: false,
+                moodValue: 3,
+                showFactors: false,
+                selectedFactors: [],
+                moodNote: '',
+                savingMood: false,
+
+                // Impact Factors (matching iOS app)
+                impactFactors: [
+                    { id: 'health', name: 'Health', emoji: '❤️' },
+                    { id: 'sleep', name: 'Sleep', emoji: '😴' },
+                    { id: 'work', name: 'Work', emoji: '💼' },
+                    { id: 'family', name: 'Family', emoji: '👨‍👩‍👧' },
+                    { id: 'friends', name: 'Friends', emoji: '👥' },
+                    { id: 'partner', name: 'Partner', emoji: '💑' },
+                    { id: 'fitness', name: 'Fitness', emoji: '💪' },
+                    { id: 'money', name: 'Money', emoji: '💰' },
+                    { id: 'weather', name: 'Weather', emoji: '🌤️' },
+                    { id: 'hobbies', name: 'Hobbies', emoji: '🎮' },
+                    { id: 'news', name: 'News', emoji: '📰' },
+                    { id: 'tasks', name: 'Tasks', emoji: '✅' }
+                ],
+
+                // Progress (computed from data)
+                moodProgress: 0,
+                toolsProgress: 0,
+                journalProgress: 0,
+
+                get overallProgress() {
+                    return Math.round((this.moodProgress + this.toolsProgress + this.journalProgress) / 3);
+                },
+
+                get morningHabits() {
+                    return this.deduplicatedHabits.filter(h => h.routine_time === 'morning');
+                },
+                get afternoonHabits() {
+                    return this.deduplicatedHabits.filter(h => h.routine_time === 'afternoon');
+                },
+                get eveningHabits() {
+                    return this.deduplicatedHabits.filter(h => h.routine_time === 'evening');
+                },
+                get flexibleHabits() {
+                    return this.deduplicatedHabits.filter(h => !h.routine_time || h.routine_time === 'flexible' || h.routine_time === 'anytime');
+                },
+
+                // De-duplicate habits by ID (same habit might appear in multiple programs)
+                get deduplicatedHabits() {
+                    const seen = new Map();
+                    for (const habit of this.habits) {
+                        // Use habit ID or title as unique key
+                        const key = habit.id || habit.title;
+                        if (!seen.has(key)) {
+                            seen.set(key, habit);
+                        }
+                    }
+                    return Array.from(seen.values());
+                },
+
+                get totalHabits() {
+                    return this.deduplicatedHabits.length;
+                },
+                get habitsCompleted() {
+                    const today = new Date().toISOString().split('T')[0];
+                    return this.habitCompletions.filter(c => c.completed_at?.startsWith(today) && !c.is_skipped).length;
+                },
+
+                async init() {
+                    await this.initShared();
+                    renderSharedComponents('home', '', '');
+                    if (this.session) await this.loadData();
+
+                    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+                        this.session = session;
+                        if (session) {
+                            this.userEmail = session.user.email;
+                            await this.loadData();
+                        }
+                    });
+                },
+
+                async loadData() {
+                    await Promise.all([
+                        this.fetchHabits(),
+                        this.fetchHabitCompletions(),
+                        this.fetchGoals(),
+                        this.fetchMoods(),
+                        this.fetchActivePath(),
+                        this.fetchUserSettings()
+                    ]);
+                    this.calculateProgress();
+                },
+
+                async fetchHabits() {
+                    const { data } = await supabaseClient.from('habits').select('*').eq('is_active', true);
+                    if (data) this.habits = data;
+                },
+
+                async fetchHabitCompletions() {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const { data } = await supabaseClient.from('habit_completions').select('*').gte('completed_at', today.toISOString());
+                    if (data) this.habitCompletions = data;
+                },
+
+                async fetchGoals() {
+                    const { data } = await supabaseClient.from('goals').select('*').eq('is_completed', false).order('priority', { ascending: false });
+                    if (data) this.goals = data;
+                },
+
+                async fetchMoods() {
+                    const weekAgo = new Date();
+                    weekAgo.setDate(weekAgo.getDate() - 7);
+                    const { data } = await supabaseClient.from('mood_entries').select('*').gte('created_at', weekAgo.toISOString()).order('created_at', { ascending: true });
+                    if (data) this.recentMoods = data;
+                },
+
+                async fetchActivePath() {
+                    try {
+                        // Try the new path_progress table first, fall back to user_path_progress
+                        let data = null;
+
+                        // Try new table
+                        const { data: newData, error: newError } = await supabaseClient
+                            .from('path_progress')
+                            .select('*')
+                            .eq('is_active', true)
+                            .single();
+
+                        if (newData && !newError) {
+                            data = newData;
+                        } else {
+                            // Fall back to existing table
+                            const { data: oldData } = await supabaseClient
+                                .from('user_path_progress')
+                                .select('*')
+                                .eq('status', 'active')
+                                .single();
+
+                            if (oldData) {
+                                // Map old table fields to new format
+                                data = {
+                                    path_name: oldData.template_title,
+                                    category: oldData.template_category,
+                                    current_day: oldData.current_day,
+                                    current_day_title: oldData.current_day_title,
+                                    total_days: oldData.template_duration
+                                };
+                            }
+                        }
+
+                        if (data) {
+                            // Path colors by category
+                            const pathColors = {
+                                'sleep': { color: 'rgba(109, 40, 217, 0.2)', icon: '🌙' },
+                                'stress': { color: 'rgba(20, 184, 166, 0.2)', icon: '🧘' },
+                                'growth': { color: 'rgba(245, 158, 11, 0.2)', icon: '🌱' },
+                                'connection': { color: 'rgba(236, 72, 153, 0.2)', icon: '❤️' },
+                                'creativity': { color: 'rgba(168, 85, 247, 0.2)', icon: '✨' },
+                                'mindfulness': { color: 'rgba(59, 130, 246, 0.2)', icon: '🧠' }
+                            };
+                            const category = data.category || 'growth';
+                            const style = pathColors[category] || pathColors.growth;
+
+                            this.activePath = {
+                                name: data.path_name || 'Active Path',
+                                dayProgress: `Day ${data.current_day || 1}/${data.total_days || 7}`,
+                                dayTitle: data.current_day_title || `Day ${data.current_day || 1} Activity`,
+                                color: style.color,
+                                icon: style.icon
+                            };
+                        }
+                    } catch (e) {
+                        console.log('No active path found:', e);
+                        this.activePath = null;
+                    }
+                },
+
+                async fetchUserSettings() {
+                    try {
+                        const { data } = await supabaseClient.from('user_profiles').select('configured_action, configured_action_name').single();
+                        if (data) {
+                            this.configuredActionType = data.configured_action;
+                            this.configuredActionName = data.configured_action_name || this.getDefaultActionName(data.configured_action);
+                            this.configuredActionIcon = this.getActionIcon(data.configured_action);
+                        }
+                    } catch (e) {
+                        // Use defaults
+                        this.configuredActionName = 'Breathe';
+                        this.configuredActionIcon = '🧘';
+                    }
+                },
+
+                getDefaultActionName(actionType) {
+                    const names = {
+                        'breathing': 'Breathe',
+                        'meditation': 'Meditate',
+                        'gratitude': 'Gratitude',
+                        'journal': 'Journal',
+                        'hydration': 'Hydrate'
+                    };
+                    return names[actionType] || 'Action';
+                },
+
+                getActionIcon(actionType) {
+                    const icons = {
+                        'breathing': '🌬️',
+                        'meditation': '🧘',
+                        'gratitude': '🙏',
+                        'journal': '📝',
+                        'hydration': '💧'
+                    };
+                    return icons[actionType] || '⚡';
+                },
+
+                calculateProgress() {
+                    // Mood: 100% if logged today
+                    const today = new Date().toISOString().split('T')[0];
+                    this.moodProgress = this.recentMoods.some(m => m.created_at?.startsWith(today)) ? 100 : 0;
+
+                    // Tools: based on habits completed
+                    this.toolsProgress = this.totalHabits > 0 ? Math.round((this.habitsCompleted / this.totalHabits) * 100) : 0;
+
+                    // Journal: check if any journal today
+                    this.journalProgress = 50; // Placeholder - would check journal_entries table
+                },
+
+                isCompletedToday(habitId) {
+                    const today = new Date().toISOString().split('T')[0];
+                    return this.habitCompletions.some(c => c.habit_id === habitId && c.completed_at?.startsWith(today) && !c.is_skipped);
+                },
+
+                async toggleHabit(habit) {
+                    const isCompleted = this.isCompletedToday(habit.id);
+
+                    if (isCompleted) {
+                        const today = new Date().toISOString().split('T')[0];
+                        const completion = this.habitCompletions.find(c => c.habit_id === habit.id && c.completed_at?.startsWith(today));
+                        if (completion) {
+                            await supabaseClient.from('habit_completions').delete().eq('id', completion.id);
+                            this.habitCompletions = this.habitCompletions.filter(c => c.id !== completion.id);
+                        }
+                    } else {
+                        const { data } = await supabaseClient.from('habit_completions').insert({
+                            habit_id: habit.id,
+                            completed_at: new Date().toISOString(),
+                            source: 'web'
+                        }).select().single();
+                        if (data) this.habitCompletions.push(data);
+                    }
+                    this.calculateProgress();
+                },
+
+                // Mood Modal Methods
+                logMood() {
+                    this.moodValue = 3;
+                    this.selectedFactors = [];
+                    this.moodNote = '';
+                    this.showFactors = false;
+                    this.showMoodModal = true;
+                },
+
+                toggleFactor(factorId) {
+                    const index = this.selectedFactors.indexOf(factorId);
+                    if (index === -1) {
+                        this.selectedFactors.push(factorId);
+                    } else {
+                        this.selectedFactors.splice(index, 1);
+                    }
+                },
+
+                async submitMood() {
+                    this.savingMood = true;
+                    const score = Math.round(this.moodValue);
+
+                    const moodData = {
+                        mood_score: score,
+                        mood_type: this.moodTypeFromScore(score),
+                        triggers: this.selectedFactors.length > 0 ? this.selectedFactors.join(',') : null,
+                        notes: this.moodNote || null,
+                        created_at: new Date().toISOString(),
+                        source: 'web'
+                    };
+
+                    const { data, error } = await supabaseClient.from('mood_entries').insert(moodData).select().single();
+
+                    if (data) {
+                        this.recentMoods.push(data);
+                        this.calculateProgress();
+                    }
+
+                    this.savingMood = false;
+                    this.showMoodModal = false;
+                },
+
+                moodTypeFromScore(score) {
+                    const types = { 1: 'very_low', 2: 'low', 3: 'neutral', 4: 'good', 5: 'great' };
+                    return types[score] || 'neutral';
+                },
+
+                moodEmoji(score) {
+                    const rounded = Math.round(score);
+                    const emojis = { 1: '😢', 2: '😔', 3: '😐', 4: '🙂', 5: '😊' };
+                    return emojis[rounded] || '😐';
+                },
+
+                moodLabel(value) {
+                    const rounded = Math.round(value);
+                    const labels = { 1: 'Very Unpleasant', 2: 'Unpleasant', 3: 'Neutral', 4: 'Pleasant', 5: 'Very Pleasant' };
+                    return labels[rounded] || 'Neutral';
+                },
+
+                moodColor(value) {
+                    const rounded = Math.round(value);
+                    const colors = {
+                        1: '#ef4444',
+                        2: '#f59e0b',
+                        3: '#6b7280',
+                        4: '#22c55e',
+                        5: '#14b8a6'
+                    };
+                    return colors[rounded] || '#6b7280';
+                },
+
+                formatDayName(dateStr) {
+                    if (!dateStr) return '';
+                    const date = new Date(dateStr);
+                    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    return days[date.getDay()];
+                },
+
+                // Deep Link Methods
+                openJournalInApp() {
+                    window.location.href = 'stagewell://journal';
+                },
+
+                openPathInApp() {
+                    window.location.href = 'stagewell://paths';
+                },
+
+                openConfiguredAction() {
+                    // For now, open the app to the configured action
+                    // Could also show a web-based alternative for some actions
+                    const actionDeepLinks = {
+                        'breathing': 'stagewell://tools/breathing',
+                        'meditation': 'stagewell://tools/meditation',
+                        'gratitude': 'stagewell://tools/gratitude',
+                        'journal': 'stagewell://journal',
+                        'hydration': 'stagewell://tools/hydration'
+                    };
+
+                    const link = actionDeepLinks[this.configuredActionType] || 'stagewell://home';
+                    window.location.href = link;
+                }
+            };
+        }
+    </script>
+</body>
+</html>

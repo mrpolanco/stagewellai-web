@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stagewell AI - Habits & Goals</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="theme.css">
+    <script src="shared.js"></script>
+
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('stagewell-theme') || 'default';
+            const savedMode = localStorage.getItem('stagewell-mode') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.documentElement.setAttribute('data-mode', savedMode);
+        })();
+    </script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd', 400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9' },
+                        flow: {
+                            morning: { bg: '#22c55e', light: '#dcfce7' },
+                            afternoon: { bg: '#a855f7', light: '#f3e8ff' },
+                            evening: { bg: '#ef4444', light: '#fee2e2' },
+                            flexible: { bg: '#f59e0b', light: '#fef3c7' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+        .habit-checkbox { transition: all 0.2s ease; }
+        .habit-checkbox:hover { transform: scale(1.1); }
+        .habit-checkbox.checked { animation: checkBounce 0.3s ease; }
+        @keyframes checkBounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+        .streak-fire { animation: flicker 1.5s ease-in-out infinite alternate; }
+        @keyframes flicker { 0% { transform: scale(1) rotate(-2deg); } 100% { transform: scale(1.05) rotate(2deg); } }
+        .flow-card { overflow: hidden; border-radius: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+        .flow-header-morning { background: linear-gradient(135deg, #22c55e, #16a34a); }
+        .flow-header-afternoon { background: linear-gradient(135deg, #a855f7, #9333ea); }
+        .flow-header-evening { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .flow-header-flexible { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    </style>
+</head>
+<body class="bg-wavy font-sans antialiased min-h-screen transition-colors duration-300" x-data="habitsPage()">
+
+    <!-- AUTH SCREEN -->
+    <div x-show="!session" class="min-h-screen flex items-center justify-center p-4">
+        <div class="max-w-md w-full card-glass overflow-hidden animate-fade-in">
+            <div class="bg-gradient-primary p-8 text-center relative overflow-hidden">
+                <div class="absolute inset-0 overflow-hidden">
+                    <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                    <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                </div>
+                <div class="relative">
+                    <h1 class="text-3xl font-bold text-white mb-2">Stagewell AI</h1>
+                    <p class="text-white/80">Habits & Goals</p>
+                </div>
+            </div>
+            <div class="p-8" style="background: var(--bg-surface);">
+                <p class="text-center mb-6" style="color: var(--text-secondary);">Sign in to manage your habits and goals.</p>
+                <div x-show="!emailSent">
+                    <button @click="signInWithGoogle" :disabled="loading"
+                            class="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl font-medium transition-all hover:shadow-md disabled:opacity-50"
+                            style="background: white; border: 1px solid #e5e7eb; color: #374151;">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        </svg>
+                        <span>Continue with Google</span>
+                    </button>
+                    <div class="flex items-center gap-4 my-6">
+                        <div class="flex-1 h-px" style="background: var(--border-default);"></div>
+                        <span class="text-xs font-medium" style="color: var(--text-muted);">or sign in with email</span>
+                        <div class="flex-1 h-px" style="background: var(--border-default);"></div>
+                    </div>
+                    <form @submit.prevent="signInWithMagicLink" class="space-y-4">
+                        <input type="email" x-model="loginEmail" required class="input-themed w-full" placeholder="Enter your email">
+                        <button type="submit" :disabled="loading" class="btn-primary w-full flex items-center justify-center gap-2 py-3 disabled:opacity-50">
+                            <span x-show="!loading">✨ Send Magic Link</span>
+                            <span x-show="loading" class="flex items-center gap-2">
+                                <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                                Sending...
+                            </span>
+                        </button>
+                    </form>
+                </div>
+                <div x-show="emailSent" x-cloak class="text-center">
+                    <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl" style="background: var(--bg-muted);">✉️</div>
+                    <h3 class="text-lg font-bold mb-2" style="color: var(--text-primary);">Check your email</h3>
+                    <p class="text-sm mb-6" style="color: var(--text-secondary);">We sent a magic link to <strong x-text="loginEmail"></strong>.</p>
+                    <button @click="emailSent = false" class="font-medium hover:underline text-sm" style="color: var(--color-primary-500);">Try a different email</button>
+                </div>
+            </div>
+            <p class="text-xs text-center py-4" style="color: var(--text-muted); background: var(--bg-surface);">Securely connected via Supabase Auth</p>
+        </div>
+    </div>
+
+    <!-- MAIN SCREEN -->
+    <div x-show="session" x-cloak class="min-h-screen flex flex-col lg:flex-row">
+
+        <!-- SIDEBAR -->
+        <aside class="w-full lg:w-72 sidebar-glass flex-shrink-0 lg:min-h-screen">
+            <div class="p-6">
+                <a href="dashboard.html" class="block">
+                    <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-primary">Stagewell</h2>
+                    <p class="text-xs mt-1 uppercase tracking-wider" style="color: var(--text-muted);">Insight Center</p>
+                </a>
+            </div>
+            <nav class="px-4 pb-4 lg:pb-0 flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible scrollbar-hide">
+                <a href="dashboard.html" class="sidebar-item flex-shrink-0 flex items-center gap-3"><span class="text-xl">📊</span><span class="hidden lg:inline">Overview</span></a>
+                <a href="habits.html" class="sidebar-item active flex-shrink-0 flex items-center gap-3"><span class="text-xl">✅</span><span class="hidden lg:inline">Habits & Goals</span><span class="hidden lg:inline ml-auto badge-primary text-xs">Sync</span></a>
+                <a href="journal.html" class="sidebar-item flex-shrink-0 flex items-center gap-3"><span class="text-xl">📓</span><span class="hidden lg:inline">Journal</span><span class="hidden lg:inline ml-auto text-xs px-2 py-0.5 rounded-full" style="background: var(--bg-muted); color: var(--text-muted);">E2E</span></a>
+                <a href="growth.html" class="sidebar-item flex-shrink-0 flex items-center gap-3"><span class="text-xl">🌱</span><span class="hidden lg:inline">Growth Path</span></a>
+                <a href="settings.html" class="sidebar-item flex-shrink-0 flex items-center gap-3"><span class="text-xl">⚙️</span><span class="hidden lg:inline">Settings</span></a>
+            </nav>
+            <div class="hidden lg:block p-4 mt-auto" style="border-top: 1px solid var(--border-default);">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold shadow-lg"><span x-text="userEmail ? userEmail[0].toUpperCase() : 'U'"></span></div>
+                    <div class="overflow-hidden flex-1">
+                        <p class="text-sm font-medium truncate" style="color: var(--text-primary);" x-text="userEmail"></p>
+                        <button @click="signOut" class="text-xs text-red-500 hover:underline">Sign Out</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+
+            <!-- HEADER -->
+            <div class="flex flex-col md:flex-row md:items-start justify-between mb-8 gap-4">
+                <div class="animate-fade-in">
+                    <p class="text-sm font-medium mb-1" style="color: var(--text-muted);" x-text="currentDateFormatted"></p>
+                    <h1 class="text-2xl md:text-3xl font-bold" style="color: var(--text-primary);">Your Day</h1>
+                    <p class="mt-1" style="color: var(--text-secondary);">Habits organized by flow</p>
+                </div>
+                <div class="flex items-center gap-3 flex-wrap">
+                    <!-- Today Progress -->
+                    <div class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium" style="background: rgba(34, 197, 94, 0.1); color: rgb(22, 163, 74);">
+                        <span>✅</span>
+                        <span x-text="todayCompleted + '/' + totalActiveHabits"></span> done
+                    </div>
+                    <!-- Sync Status -->
+                    <div class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium" style="background: rgba(20, 184, 166, 0.1); color: rgb(13, 148, 136);">
+                        <span class="relative flex h-2 w-2">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style="background: var(--color-accent-500);"></span>
+                          <span class="relative inline-flex rounded-full h-2 w-2" style="background: var(--color-accent-500);"></span>
+                        </span>
+                        <span x-text="syncing ? 'Syncing...' : 'Synced'"></span>
+                    </div>
+                    <!-- Dark Mode Toggle -->
+                    <button @click="toggleDarkMode" class="btn-ghost flex items-center gap-2" :title="darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
+                        <span x-show="!darkMode" class="text-xl">🌙</span>
+                        <span x-show="darkMode" class="text-xl">☀️</span>
+                    </button>
+                    <!-- Theme Picker -->
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" class="btn-ghost flex items-center gap-2 px-3 py-2 rounded-lg" style="background: var(--bg-muted);">
+                            <span x-text="themeEmoji" class="text-lg"></span>
+                            <span class="hidden sm:inline text-sm font-medium" style="color: var(--text-secondary);" x-text="themeName"></span>
+                            <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div x-show="open" @click.away="open = false" x-transition class="theme-picker-dropdown animate-fade-in">
+                            <p class="text-xs font-semibold uppercase tracking-wider mb-3" style="color: var(--text-muted);">Color Theme</p>
+                            <div class="space-y-1">
+                                <template x-for="t in themes" :key="t.id">
+                                    <button @click="setTheme(t.id); open = false" class="theme-option w-full" :class="{ 'active': currentTheme === t.id }">
+                                        <div class="theme-swatch" :style="'background: linear-gradient(135deg, ' + t.gradient[0] + ', ' + t.gradient[1] + ')'"><span x-text="t.emoji" class="drop-shadow"></span></div>
+                                        <div class="flex-1 text-left"><p class="font-medium text-sm" style="color: var(--text-primary);" x-text="t.name"></p></div>
+                                        <svg x-show="currentTheme === t.id" class="w-5 h-5" style="color: var(--color-primary-500);" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Mobile Sign Out -->
+                    <button @click="signOut" class="lg:hidden btn-ghost" style="color: var(--text-muted);"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg></button>
+                </div>
+            </div>
+
+            <!-- LOADING STATE -->
+            <div x-show="dataLoading" class="py-16 text-center">
+                <div class="animate-spin w-12 h-12 rounded-full mx-auto" style="border: 4px solid var(--border-default); border-top-color: var(--color-primary-500);"></div>
+                <p class="mt-6" style="color: var(--text-secondary);">Loading your habits...</p>
+            </div>
+
+            <!-- EMPTY STATE -->
+            <div x-show="!dataLoading && habits.length === 0" class="py-16 text-center">
+                <div class="max-w-md mx-auto">
+                    <div class="w-24 h-24 rounded-3xl bg-gradient-primary flex items-center justify-center mx-auto mb-6 text-4xl shadow-lg">📱</div>
+                    <h3 class="text-xl font-bold mb-3" style="color: var(--text-primary);">No habits yet</h3>
+                    <p class="mb-6" style="color: var(--text-secondary);">Create habits in the iOS app and they'll appear here organized by your daily flows.</p>
+                    <div class="flex flex-wrap justify-center gap-3 text-sm">
+                        <div class="flex items-center gap-2 px-4 py-2 rounded-full" style="background: #dcfce7; color: #166534;"><span>🌅</span> Morning</div>
+                        <div class="flex items-center gap-2 px-4 py-2 rounded-full" style="background: #f3e8ff; color: #7e22ce;"><span>☀️</span> Afternoon</div>
+                        <div class="flex items-center gap-2 px-4 py-2 rounded-full" style="background: #fee2e2; color: #991b1b;"><span>🌙</span> Evening</div>
+                        <div class="flex items-center gap-2 px-4 py-2 rounded-full" style="background: #fef3c7; color: #92400e;"><span>⏰</span> Flexible</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FLOWS GRID -->
+            <div x-show="!dataLoading && habits.length > 0" class="space-y-6">
+
+                <!-- MORNING FLOW -->
+                <div class="flow-card" x-show="morningHabits.length > 0 || true">
+                    <div class="flow-header-morning p-4 text-white">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                                <span class="text-xl">🌅</span>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-lg">Morning Flow</h3>
+                                <p class="text-sm text-white/80">
+                                    <span>⏰</span> 9:00 AM • <span x-text="morningHabits.reduce((acc, h) => acc + (h.duration || 5), 0)"></span> min
+                                </p>
+                            </div>
+                            <div class="ml-auto text-right">
+                                <p class="text-2xl font-bold" x-text="morningCompleted + '/' + morningHabits.length"></p>
+                                <p class="text-xs text-white/70">completed</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="background: var(--bg-surface);">
+                        <template x-if="morningHabits.length === 0">
+                            <div class="p-8 text-center">
+                                <span class="text-4xl mb-3 block opacity-30">✨</span>
+                                <p style="color: var(--text-muted);">No morning habits yet</p>
+                            </div>
+                        </template>
+                        <template x-for="habit in morningHabits" :key="habit.id">
+                            <div class="flex items-center gap-4 p-4 border-b transition-all hover:bg-opacity-50 cursor-pointer"
+                                 :style="'border-color: var(--border-default);' + (isCompletedToday(habit.id) ? 'background: rgba(34, 197, 94, 0.05);' : '')"
+                                 @click="toggleHabitCompletion(habit)">
+                                <div class="habit-checkbox w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all"
+                                     :class="isCompletedToday(habit.id) ? 'bg-green-500 text-white checked shadow-lg' : ''"
+                                     :style="!isCompletedToday(habit.id) ? 'background: var(--bg-muted); border: 2px solid var(--border-default);' : ''">
+                                    <span x-show="isCompletedToday(habit.id)">✓</span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium" :class="isCompletedToday(habit.id) ? 'line-through' : ''" :style="isCompletedToday(habit.id) ? 'color: var(--text-muted);' : 'color: var(--text-primary);'" x-text="habit.name || habit.title"></p>
+                                    <p class="text-xs flex items-center gap-2" style="color: var(--text-muted);">
+                                        <span class="flex items-center gap-1"><span>🌅</span> Morning Flow</span>
+                                        <template x-if="habit.streak > 0"><span class="flex items-center gap-1 text-orange-500"><span>🔥</span><span x-text="habit.streak"></span></span></template>
+                                    </p>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-sm" style="color: var(--text-muted);" x-text="(habit.duration || 5) + ' min'"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- AFTERNOON FLOW -->
+                <div class="flow-card" x-show="afternoonHabits.length > 0 || true">
+                    <div class="flow-header-afternoon p-4 text-white">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                                <span class="text-xl">☀️</span>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-lg">Afternoon Flow</h3>
+                                <p class="text-sm text-white/80">
+                                    <span>⏰</span> 2:00 PM • <span x-text="afternoonHabits.reduce((acc, h) => acc + (h.duration || 5), 0)"></span> min
+                                </p>
+                            </div>
+                            <div class="ml-auto text-right">
+                                <p class="text-2xl font-bold" x-text="afternoonCompleted + '/' + afternoonHabits.length"></p>
+                                <p class="text-xs text-white/70">completed</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="background: var(--bg-surface);">
+                        <template x-if="afternoonHabits.length === 0">
+                            <div class="p-8 text-center">
+                                <span class="text-4xl mb-3 block opacity-30">✨</span>
+                                <p style="color: var(--text-muted);">No afternoon habits yet</p>
+                            </div>
+                        </template>
+                        <template x-for="habit in afternoonHabits" :key="habit.id">
+                            <div class="flex items-center gap-4 p-4 border-b transition-all hover:bg-opacity-50 cursor-pointer"
+                                 :style="'border-color: var(--border-default);' + (isCompletedToday(habit.id) ? 'background: rgba(168, 85, 247, 0.05);' : '')"
+                                 @click="toggleHabitCompletion(habit)">
+                                <div class="habit-checkbox w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all"
+                                     :class="isCompletedToday(habit.id) ? 'bg-purple-500 text-white checked shadow-lg' : ''"
+                                     :style="!isCompletedToday(habit.id) ? 'background: var(--bg-muted); border: 2px solid var(--border-default);' : ''">
+                                    <span x-show="isCompletedToday(habit.id)">✓</span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium" :class="isCompletedToday(habit.id) ? 'line-through' : ''" :style="isCompletedToday(habit.id) ? 'color: var(--text-muted);' : 'color: var(--text-primary);'" x-text="habit.name || habit.title"></p>
+                                    <p class="text-xs flex items-center gap-2" style="color: var(--text-muted);">
+                                        <span class="flex items-center gap-1"><span>☀️</span> Afternoon Flow</span>
+                                        <template x-if="habit.streak > 0"><span class="flex items-center gap-1 text-orange-500"><span>🔥</span><span x-text="habit.streak"></span></span></template>
+                                    </p>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-sm" style="color: var(--text-muted);" x-text="(habit.duration || 5) + ' min'"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- EVENING FLOW -->
+                <div class="flow-card" x-show="eveningHabits.length > 0 || true">
+                    <div class="flow-header-evening p-4 text-white">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                                <span class="text-xl">🌙</span>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-lg">Evening Flow</h3>
+                                <p class="text-sm text-white/80">
+                                    <span>⏰</span> 8:00 PM • <span x-text="eveningHabits.reduce((acc, h) => acc + (h.duration || 5), 0)"></span> min
+                                </p>
+                            </div>
+                            <div class="ml-auto text-right">
+                                <p class="text-2xl font-bold" x-text="eveningCompleted + '/' + eveningHabits.length"></p>
+                                <p class="text-xs text-white/70">completed</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="background: var(--bg-surface);">
+                        <template x-if="eveningHabits.length === 0">
+                            <div class="p-8 text-center">
+                                <span class="text-4xl mb-3 block opacity-30">✨</span>
+                                <p style="color: var(--text-muted);">No evening habits yet</p>
+                            </div>
+                        </template>
+                        <template x-for="habit in eveningHabits" :key="habit.id">
+                            <div class="flex items-center gap-4 p-4 border-b transition-all hover:bg-opacity-50 cursor-pointer"
+                                 :style="'border-color: var(--border-default);' + (isCompletedToday(habit.id) ? 'background: rgba(239, 68, 68, 0.05);' : '')"
+                                 @click="toggleHabitCompletion(habit)">
+                                <div class="habit-checkbox w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all"
+                                     :class="isCompletedToday(habit.id) ? 'bg-red-500 text-white checked shadow-lg' : ''"
+                                     :style="!isCompletedToday(habit.id) ? 'background: var(--bg-muted); border: 2px solid var(--border-default);' : ''">
+                                    <span x-show="isCompletedToday(habit.id)">✓</span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium" :class="isCompletedToday(habit.id) ? 'line-through' : ''" :style="isCompletedToday(habit.id) ? 'color: var(--text-muted);' : 'color: var(--text-primary);'" x-text="habit.name || habit.title"></p>
+                                    <p class="text-xs flex items-center gap-2" style="color: var(--text-muted);">
+                                        <span class="flex items-center gap-1"><span>🌙</span> Evening Flow</span>
+                                        <template x-if="habit.streak > 0"><span class="flex items-center gap-1 text-orange-500"><span>🔥</span><span x-text="habit.streak"></span></span></template>
+                                    </p>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-sm" style="color: var(--text-muted);" x-text="(habit.duration || 5) + ' min'"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- FLEXIBLE FLOW -->
+                <div class="flow-card" x-show="flexibleHabits.length > 0">
+                    <div class="flow-header-flexible p-4 text-white">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                                <span class="text-xl">⏰</span>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-lg">Flexible</h3>
+                                <p class="text-sm text-white/80">
+                                    Anytime • <span x-text="flexibleHabits.reduce((acc, h) => acc + (h.duration || 5), 0)"></span> min
+                                </p>
+                            </div>
+                            <div class="ml-auto text-right">
+                                <p class="text-2xl font-bold" x-text="flexibleCompleted + '/' + flexibleHabits.length"></p>
+                                <p class="text-xs text-white/70">completed</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="background: var(--bg-surface);">
+                        <template x-for="habit in flexibleHabits" :key="habit.id">
+                            <div class="flex items-center gap-4 p-4 border-b transition-all hover:bg-opacity-50 cursor-pointer"
+                                 :style="'border-color: var(--border-default);' + (isCompletedToday(habit.id) ? 'background: rgba(245, 158, 11, 0.05);' : '')"
+                                 @click="toggleHabitCompletion(habit)">
+                                <div class="habit-checkbox w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all"
+                                     :class="isCompletedToday(habit.id) ? 'bg-amber-500 text-white checked shadow-lg' : ''"
+                                     :style="!isCompletedToday(habit.id) ? 'background: var(--bg-muted); border: 2px solid var(--border-default);' : ''">
+                                    <span x-show="isCompletedToday(habit.id)">✓</span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium" :class="isCompletedToday(habit.id) ? 'line-through' : ''" :style="isCompletedToday(habit.id) ? 'color: var(--text-muted);' : 'color: var(--text-primary);'" x-text="habit.name || habit.title"></p>
+                                    <p class="text-xs flex items-center gap-2" style="color: var(--text-muted);">
+                                        <span class="flex items-center gap-1"><span>⏰</span> Flexible</span>
+                                        <template x-if="habit.streak > 0"><span class="flex items-center gap-1 text-orange-500"><span>🔥</span><span x-text="habit.streak"></span></span></template>
+                                    </p>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-sm" style="color: var(--text-muted);" x-text="(habit.duration || 5) + ' min'"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- GOALS SECTION -->
+                <div class="card-glass p-6 mt-8" x-show="goals.length > 0">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-lg font-bold" style="color: var(--text-primary);">Goals</h3>
+                            <p class="text-sm" style="color: var(--text-secondary);">Your longer-term targets</p>
+                        </div>
+                        <div class="flex gap-1">
+                            <button @click="goalFilter = 'all'" class="px-3 py-1 text-xs rounded-full transition-colors" :class="goalFilter === 'all' ? 'bg-gradient-primary text-white' : ''" :style="goalFilter !== 'all' ? 'background: var(--bg-muted); color: var(--text-secondary);' : ''">All</button>
+                            <button @click="goalFilter = 'active'" class="px-3 py-1 text-xs rounded-full transition-colors" :class="goalFilter === 'active' ? 'bg-gradient-primary text-white' : ''" :style="goalFilter !== 'active' ? 'background: var(--bg-muted); color: var(--text-secondary);' : ''">Active</button>
+                            <button @click="goalFilter = 'completed'" class="px-3 py-1 text-xs rounded-full transition-colors" :class="goalFilter === 'completed' ? 'bg-gradient-primary text-white' : ''" :style="goalFilter !== 'completed' ? 'background: var(--bg-muted); color: var(--text-secondary);' : ''">Done</button>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <template x-for="goal in filteredGoals" :key="goal.id">
+                            <div class="flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all hover:shadow-sm" :style="goal.is_completed ? 'background: var(--bg-muted); opacity: 0.7;' : 'background: var(--bg-muted);'" @click="toggleGoalCompletion(goal)">
+                                <div class="w-5 h-5 rounded-full flex-shrink-0 mt-0.5 flex items-center justify-center text-xs" :class="goal.is_completed ? 'bg-gradient-primary text-white' : ''" :style="!goal.is_completed ? 'border: 2px solid var(--border-default);' : ''"><span x-show="goal.is_completed">✓</span></div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium" :class="goal.is_completed ? 'line-through' : ''" :style="goal.is_completed ? 'color: var(--text-muted);' : 'color: var(--text-primary);'" x-text="goal.title || goal.name"></p>
+                                    <p class="text-xs mt-1" style="color: var(--text-muted);" x-show="goal.target_date" x-text="'Due: ' + new Date(goal.target_date).toLocaleDateString()"></p>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function habitsPage() {
+            return {
+                ...sharedPageData('habits'),
+
+                syncing: false,
+                dataLoading: false,
+                habits: [],
+                habitCompletions: [],
+                goals: [],
+                goalFilter: 'all',
+
+                // Group habits by routine time
+                get morningHabits() {
+                    return this.habits.filter(h => h.routine_time === 'morning' || h.flow === 'morning');
+                },
+                get afternoonHabits() {
+                    return this.habits.filter(h => h.routine_time === 'afternoon' || h.flow === 'afternoon');
+                },
+                get eveningHabits() {
+                    return this.habits.filter(h => h.routine_time === 'evening' || h.flow === 'evening');
+                },
+                get flexibleHabits() {
+                    return this.habits.filter(h =>
+                        h.routine_time === 'flexible' || h.routine_time === 'anytime' ||
+                        h.flow === 'flexible' || h.flow === 'anytime' ||
+                        (!h.routine_time && !h.flow)
+                    );
+                },
+
+                // Completion counts per flow
+                get morningCompleted() {
+                    return this.morningHabits.filter(h => this.isCompletedToday(h.id)).length;
+                },
+                get afternoonCompleted() {
+                    return this.afternoonHabits.filter(h => this.isCompletedToday(h.id)).length;
+                },
+                get eveningCompleted() {
+                    return this.eveningHabits.filter(h => this.isCompletedToday(h.id)).length;
+                },
+                get flexibleCompleted() {
+                    return this.flexibleHabits.filter(h => this.isCompletedToday(h.id)).length;
+                },
+
+                get totalActiveHabits() {
+                    return this.habits.filter(h => h.is_active !== false).length;
+                },
+
+                get todayCompleted() {
+                    const today = new Date().toISOString().split('T')[0];
+                    return this.habitCompletions.filter(c => c.completed_at && c.completed_at.startsWith(today) && !c.is_skipped).length;
+                },
+
+                get filteredGoals() {
+                    if (this.goalFilter === 'active') return this.goals.filter(g => !g.is_completed);
+                    if (this.goalFilter === 'completed') return this.goals.filter(g => g.is_completed);
+                    return this.goals;
+                },
+
+                async init() {
+                    await this.initShared();
+                    if (this.session) await this.fetchAllData();
+
+                    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+                        this.session = session;
+                        if (session) {
+                            this.userEmail = session.user.email;
+                            await this.fetchAllData();
+                        }
+                    });
+                },
+
+                async fetchAllData() {
+                    this.dataLoading = true;
+                    await Promise.all([this.fetchHabits(), this.fetchHabitCompletions(), this.fetchGoals()]);
+                    this.dataLoading = false;
+                },
+
+                async fetchHabits() {
+                    const { data, error } = await supabaseClient.from('habits').select('*').order('created_at', { ascending: false });
+                    if (!error && data) this.habits = data.filter(h => h.is_active !== false);
+                },
+
+                async fetchHabitCompletions() {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const { data, error } = await supabaseClient.from('habit_completions').select('*').gte('completed_at', today.toISOString()).order('completed_at', { ascending: false });
+                    if (!error && data) this.habitCompletions = data;
+                },
+
+                async fetchGoals() {
+                    const { data, error } = await supabaseClient.from('goals').select('*').order('priority', { ascending: false }).order('created_at', { ascending: false });
+                    if (!error && data) this.goals = data;
+                },
+
+                isCompletedToday(habitId) {
+                    const today = new Date().toISOString().split('T')[0];
+                    return this.habitCompletions.some(c => c.habit_id === habitId && c.completed_at?.startsWith(today) && !c.is_skipped);
+                },
+
+                async toggleHabitCompletion(habit) {
+                    this.syncing = true;
+                    const isCompleted = this.isCompletedToday(habit.id);
+
+                    if (isCompleted) {
+                        const today = new Date().toISOString().split('T')[0];
+                        const completion = this.habitCompletions.find(c => c.habit_id === habit.id && c.completed_at?.startsWith(today) && !c.is_skipped);
+                        if (completion) {
+                            await supabaseClient.from('habit_completions').delete().eq('id', completion.id);
+                            this.habitCompletions = this.habitCompletions.filter(c => c.id !== completion.id);
+                        }
+                    } else {
+                        const { data, error } = await supabaseClient.from('habit_completions').insert({ habit_id: habit.id, completed_at: new Date().toISOString(), source: 'web', quantity: 1, is_skipped: false }).select().single();
+                        if (!error && data) {
+                            this.habitCompletions.push(data);
+                            const idx = this.habits.findIndex(h => h.id === habit.id);
+                            if (idx >= 0) this.habits[idx].streak = (this.habits[idx].streak || 0) + 1;
+                        }
+                    }
+                    this.syncing = false;
+                },
+
+                async toggleGoalCompletion(goal) {
+                    this.syncing = true;
+                    const newStatus = !goal.is_completed;
+                    const { error } = await supabaseClient.from('goals').update({ is_completed: newStatus, completed_at: newStatus ? new Date().toISOString() : null }).eq('id', goal.id);
+                    if (!error) {
+                        const idx = this.goals.findIndex(g => g.id === goal.id);
+                        if (idx >= 0) {
+                            this.goals[idx].is_completed = newStatus;
+                            this.goals[idx].completed_at = newStatus ? new Date().toISOString() : null;
+                        }
+                    }
+                    this.syncing = false;
+                }
+            };
+        }
+    </script>
+</body>
+</html>

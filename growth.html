@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stagewell AI - Growth Path</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="theme.css">
+    <script src="shared.js"></script>
+
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('stagewell-theme') || 'default';
+            const savedMode = localStorage.getItem('stagewell-mode') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.documentElement.setAttribute('data-mode', savedMode);
+        })();
+    </script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe',
+                            300: '#c4b5fd', 400: '#a78bfa', 500: '#8b5cf6',
+                            600: '#7c3aed', 700: '#6d28d9',
+                        },
+                        maslow: {
+                            physiological: '#ef4444',
+                            safety: '#f97316',
+                            belonging: '#eab308',
+                            esteem: '#22c55e',
+                            actualization: '#6366f1'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+        .pyramid-clip { clip-path: polygon(50% 0%, 100% 100%, 0% 100%); }
+    </style>
+</head>
+<body class="bg-wavy font-sans antialiased min-h-screen transition-colors duration-300"
+      x-data="growthPage()">
+
+    <!-- AUTH SCREEN -->
+    <div x-show="!session" class="min-h-screen flex items-center justify-center p-4">
+        <div class="max-w-md w-full card-glass overflow-hidden animate-fade-in">
+            <div class="bg-gradient-primary p-8 text-center relative overflow-hidden">
+                <div class="absolute inset-0 overflow-hidden">
+                    <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                    <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                </div>
+                <div class="relative">
+                    <h1 class="text-3xl font-bold text-white mb-2">Stagewell AI</h1>
+                    <p class="text-white/80">Growth Path</p>
+                </div>
+            </div>
+            <div class="p-8" style="background: var(--bg-surface);">
+                <p class="text-center mb-6" style="color: var(--text-secondary);">Sign in to view your growth journey.</p>
+                <div x-show="!emailSent">
+                    <button @click="signInWithGoogle"
+                            :disabled="loading"
+                            class="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl font-medium transition-all hover:shadow-md disabled:opacity-50"
+                            style="background: white; border: 1px solid #e5e7eb; color: #374151;">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        </svg>
+                        <span>Continue with Google</span>
+                    </button>
+                    <div class="flex items-center gap-4 my-6">
+                        <div class="flex-1 h-px" style="background: var(--border-default);"></div>
+                        <span class="text-xs font-medium" style="color: var(--text-muted);">or sign in with email</span>
+                        <div class="flex-1 h-px" style="background: var(--border-default);"></div>
+                    </div>
+                    <form @submit.prevent="signInWithMagicLink" class="space-y-4">
+                        <input type="email" x-model="loginEmail" required
+                               class="input-themed w-full"
+                               placeholder="Enter your email">
+                        <button type="submit" :disabled="loading"
+                                class="btn-primary w-full flex items-center justify-center gap-2 py-3 disabled:opacity-50">
+                            <span x-show="!loading">✨ Send Magic Link</span>
+                            <span x-show="loading" class="flex items-center gap-2">
+                                <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                                </svg>
+                                Sending...
+                            </span>
+                        </button>
+                    </form>
+                </div>
+                <div x-show="emailSent" x-cloak class="text-center">
+                    <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl" style="background: var(--bg-muted);">✉️</div>
+                    <h3 class="text-lg font-bold mb-2" style="color: var(--text-primary);">Check your email</h3>
+                    <p class="text-sm mb-6" style="color: var(--text-secondary);">We sent a magic link to <strong x-text="loginEmail"></strong>.</p>
+                    <button @click="emailSent = false" class="font-medium hover:underline text-sm" style="color: var(--color-primary-500);">Try a different email</button>
+                </div>
+            </div>
+            <p class="text-xs text-center py-4" style="color: var(--text-muted); background: var(--bg-surface);">
+                Securely connected via Supabase Auth
+            </p>
+        </div>
+    </div>
+
+    <!-- MAIN LAYOUT -->
+    <div x-show="session" x-cloak class="min-h-screen flex flex-col lg:flex-row">
+
+        <!-- SIDEBAR -->
+        <aside class="w-full lg:w-72 sidebar-glass flex-shrink-0 lg:min-h-screen">
+            <div class="p-6">
+                <a href="dashboard.html" class="block">
+                    <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-primary">Stagewell</h2>
+                    <p class="text-xs mt-1 uppercase tracking-wider" style="color: var(--text-muted);">Insight Center</p>
+                </a>
+            </div>
+            <nav class="px-4 pb-4 lg:pb-0 flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible scrollbar-hide">
+                <a href="dashboard.html" class="sidebar-item flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">📊</span>
+                    <span class="hidden lg:inline">Overview</span>
+                </a>
+                <a href="habits.html" class="sidebar-item flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">✅</span>
+                    <span class="hidden lg:inline">Habits & Goals</span>
+                    <span class="hidden lg:inline ml-auto badge-primary text-xs">Sync</span>
+                </a>
+                <a href="journal.html" class="sidebar-item flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">📓</span>
+                    <span class="hidden lg:inline">Journal</span>
+                    <span class="hidden lg:inline ml-auto text-xs px-2 py-0.5 rounded-full" style="background: var(--bg-muted); color: var(--text-muted);">E2E</span>
+                </a>
+                <a href="growth.html" class="sidebar-item active flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">🌱</span>
+                    <span class="hidden lg:inline">Growth Path</span>
+                </a>
+                <a href="settings.html" class="sidebar-item flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">⚙️</span>
+                    <span class="hidden lg:inline">Settings</span>
+                </a>
+            </nav>
+            <div class="hidden lg:block p-4 mt-auto" style="border-top: 1px solid var(--border-default);">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold shadow-lg">
+                        <span x-text="userEmail ? userEmail[0].toUpperCase() : 'U'"></span>
+                    </div>
+                    <div class="overflow-hidden flex-1">
+                        <p class="text-sm font-medium truncate" style="color: var(--text-primary);" x-text="userEmail"></p>
+                        <button @click="signOut" class="text-xs text-red-500 hover:underline">Sign Out</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+
+            <!-- HEADER -->
+            <div class="flex flex-col md:flex-row md:items-start justify-between mb-8 gap-4">
+                <div class="animate-fade-in">
+                    <p class="text-sm font-medium mb-1" style="color: var(--text-muted);" x-text="currentDateFormatted"></p>
+                    <h1 class="text-2xl md:text-3xl font-bold" style="color: var(--text-primary);">Your Growth Path</h1>
+                    <p class="mt-1" style="color: var(--text-secondary);">Guided by Maslow's Hierarchy of Needs</p>
+                </div>
+                <div class="flex items-center gap-3 flex-wrap">
+                    <!-- Current Stage Badge -->
+                    <div class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium" style="background: var(--color-primary-50); color: var(--color-primary-700);">
+                        <span class="text-base">🎯</span>
+                        <span x-text="currentStage.name"></span>
+                    </div>
+                    <!-- Dark Mode Toggle -->
+                    <button @click="toggleDarkMode" class="btn-ghost flex items-center gap-2" :title="darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
+                        <span x-show="!darkMode" class="text-xl">🌙</span>
+                        <span x-show="darkMode" class="text-xl">☀️</span>
+                    </button>
+                    <!-- Theme Picker -->
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" class="btn-ghost flex items-center gap-2 px-3 py-2 rounded-lg" style="background: var(--bg-muted);">
+                            <span x-text="themeEmoji" class="text-lg"></span>
+                            <span class="hidden sm:inline text-sm font-medium" style="color: var(--text-secondary);" x-text="themeName"></span>
+                            <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                        <div x-show="open" @click.away="open = false" x-transition class="theme-picker-dropdown animate-fade-in">
+                            <p class="text-xs font-semibold uppercase tracking-wider mb-3" style="color: var(--text-muted);">Color Theme</p>
+                            <div class="space-y-1">
+                                <template x-for="t in themes" :key="t.id">
+                                    <button @click="setTheme(t.id); open = false" class="theme-option w-full" :class="{ 'active': currentTheme === t.id }">
+                                        <div class="theme-swatch" :style="'background: linear-gradient(135deg, ' + t.gradient[0] + ', ' + t.gradient[1] + ')'">
+                                            <span x-text="t.emoji" class="drop-shadow"></span>
+                                        </div>
+                                        <div class="flex-1 text-left">
+                                            <p class="font-medium text-sm" style="color: var(--text-primary);" x-text="t.name"></p>
+                                        </div>
+                                        <svg x-show="currentTheme === t.id" class="w-5 h-5" style="color: var(--color-primary-500);" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Mobile Sign Out -->
+                    <button @click="signOut" class="lg:hidden btn-ghost" style="color: var(--text-muted);">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- CURRENT STAGE BANNER (when has data) -->
+            <div x-show="hasData" class="mb-8 rounded-2xl overflow-hidden" :style="'background: linear-gradient(135deg, ' + currentStage.color + '22 0%, ' + currentStage.color + '44 100%)'">
+                <div class="p-6 md:p-8">
+                    <div class="flex flex-col md:flex-row md:items-center gap-6">
+                        <div class="w-20 h-20 rounded-2xl bg-white/80 backdrop-blur-sm flex items-center justify-center text-4xl shadow-lg">
+                            <span x-text="currentStage.emoji"></span>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm font-medium uppercase tracking-wider mb-1" :style="'color: ' + currentStage.color">Current Focus</p>
+                            <h2 class="text-2xl md:text-3xl font-bold" style="color: var(--text-primary);" x-text="currentStage.name"></h2>
+                            <p class="mt-2" style="color: var(--text-secondary);" x-text="currentStage.description"></p>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <div class="text-center p-4 bg-white/60 backdrop-blur-sm rounded-xl">
+                                <p class="text-3xl font-bold" :style="'color: ' + currentStage.color" x-text="currentStage.progress + '%'"></p>
+                                <p class="text-xs mt-1" style="color: var(--text-muted);">Progress</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EMPTY STATE -->
+            <div x-show="!hasData && dataLoaded" x-cloak class="mb-8">
+                <div class="bg-gradient-primary rounded-2xl p-6 md:p-8 text-white relative overflow-hidden">
+                    <div class="absolute inset-0 opacity-20">
+                        <svg class="w-full h-full" viewBox="0 0 400 200" preserveAspectRatio="none">
+                            <polygon points="200,0 400,200 0,200" fill="currentColor"/>
+                        </svg>
+                    </div>
+                    <div class="relative flex flex-col md:flex-row md:items-center gap-6">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span class="text-3xl">🏔️</span>
+                                <h2 class="text-2xl font-bold">Discover Your Growth Stage</h2>
+                            </div>
+                            <p class="text-white/90 text-lg mb-4">
+                                Complete the assessment in the iOS app to discover where you are on Maslow's Hierarchy. Your personalized growth path will appear here.
+                            </p>
+                            <div class="flex flex-wrap gap-3 text-sm">
+                                <div class="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
+                                    <span>📋</span> 5-minute assessment
+                                </div>
+                                <div class="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
+                                    <span>🎯</span> Personalized path
+                                </div>
+                                <div class="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
+                                    <span>📈</span> Track progress
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <div class="w-32 h-32 md:w-40 md:h-40 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+                                <div class="text-center">
+                                    <span class="text-5xl md:text-6xl block mb-2">📱</span>
+                                    <p class="text-xs font-medium opacity-90">Start in App</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MASLOW'S PYRAMID -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+
+                <!-- PYRAMID VISUALIZATION -->
+                <div class="card-glass p-6">
+                    <h3 class="text-lg font-bold mb-6" style="color: var(--text-primary);">Maslow's Hierarchy</h3>
+
+                    <div class="space-y-2">
+                        <!-- Self-Actualization -->
+                        <div @click="selectStage(4)" class="cursor-pointer group">
+                            <div class="flex items-center gap-4 p-4 rounded-xl transition-all"
+                                 :class="selectedStage === 4 ? 'ring-2 ring-indigo-500' : ''"
+                                 :style="selectedStage === 4 ? 'background: rgba(99, 102, 241, 0.1);' : 'background: var(--bg-muted);'">
+                                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                                     :class="stages[4].unlocked ? 'bg-indigo-100' : ''"
+                                     :style="!stages[4].unlocked ? 'background: var(--bg-muted);' : ''">
+                                    <span :class="stages[4].unlocked ? '' : 'opacity-40'">🌟</span>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <p class="font-semibold" :style="stages[4].unlocked ? 'color: var(--text-primary);' : 'color: var(--text-muted);'">Self-Actualization</p>
+                                        <span x-show="!stages[4].unlocked" class="text-xs px-2 py-0.5 rounded" style="background: var(--bg-muted); color: var(--text-muted);">Locked</span>
+                                        <span x-show="currentStageIndex === 4" class="text-xs bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded">Current</span>
+                                    </div>
+                                    <p class="text-sm" style="color: var(--text-secondary);">Purpose, creativity, meaning</p>
+                                </div>
+                                <div class="w-16 text-right">
+                                    <span class="text-sm font-medium" :style="stages[4].unlocked ? 'color: rgb(99, 102, 241);' : 'color: var(--text-muted);'" x-text="stages[4].progress + '%'"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Esteem -->
+                        <div @click="selectStage(3)" class="cursor-pointer group">
+                            <div class="flex items-center gap-4 p-4 rounded-xl transition-all"
+                                 :class="selectedStage === 3 ? 'ring-2 ring-green-500' : ''"
+                                 :style="selectedStage === 3 ? 'background: rgba(34, 197, 94, 0.1);' : 'background: var(--bg-muted);'">
+                                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                                     :class="stages[3].unlocked ? 'bg-green-100' : ''"
+                                     :style="!stages[3].unlocked ? 'background: var(--bg-muted);' : ''">
+                                    <span :class="stages[3].unlocked ? '' : 'opacity-40'">🏆</span>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <p class="font-semibold" :style="stages[3].unlocked ? 'color: var(--text-primary);' : 'color: var(--text-muted);'">Esteem</p>
+                                        <span x-show="!stages[3].unlocked" class="text-xs px-2 py-0.5 rounded" style="background: var(--bg-muted); color: var(--text-muted);">Locked</span>
+                                        <span x-show="currentStageIndex === 3" class="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded">Current</span>
+                                    </div>
+                                    <p class="text-sm" style="color: var(--text-secondary);">Confidence, achievement, respect</p>
+                                </div>
+                                <div class="w-16 text-right">
+                                    <span class="text-sm font-medium" :style="stages[3].unlocked ? 'color: rgb(34, 197, 94);' : 'color: var(--text-muted);'" x-text="stages[3].progress + '%'"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Belonging -->
+                        <div @click="selectStage(2)" class="cursor-pointer group">
+                            <div class="flex items-center gap-4 p-4 rounded-xl transition-all"
+                                 :class="selectedStage === 2 ? 'ring-2 ring-yellow-500' : ''"
+                                 :style="selectedStage === 2 ? 'background: rgba(234, 179, 8, 0.1);' : 'background: var(--bg-muted);'">
+                                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                                     :class="stages[2].unlocked ? 'bg-yellow-100' : ''"
+                                     :style="!stages[2].unlocked ? 'background: var(--bg-muted);' : ''">
+                                    <span :class="stages[2].unlocked ? '' : 'opacity-40'">❤️</span>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <p class="font-semibold" :style="stages[2].unlocked ? 'color: var(--text-primary);' : 'color: var(--text-muted);'">Love & Belonging</p>
+                                        <span x-show="!stages[2].unlocked" class="text-xs px-2 py-0.5 rounded" style="background: var(--bg-muted); color: var(--text-muted);">Locked</span>
+                                        <span x-show="currentStageIndex === 2" class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">Current</span>
+                                    </div>
+                                    <p class="text-sm" style="color: var(--text-secondary);">Connection, relationships, community</p>
+                                </div>
+                                <div class="w-16 text-right">
+                                    <span class="text-sm font-medium" :style="stages[2].unlocked ? 'color: rgb(202, 138, 4);' : 'color: var(--text-muted);'" x-text="stages[2].progress + '%'"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Safety -->
+                        <div @click="selectStage(1)" class="cursor-pointer group">
+                            <div class="flex items-center gap-4 p-4 rounded-xl transition-all"
+                                 :class="selectedStage === 1 ? 'ring-2 ring-orange-500' : ''"
+                                 :style="selectedStage === 1 ? 'background: rgba(249, 115, 22, 0.1);' : 'background: var(--bg-muted);'">
+                                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                                     :class="stages[1].unlocked ? 'bg-orange-100' : ''"
+                                     :style="!stages[1].unlocked ? 'background: var(--bg-muted);' : ''">
+                                    <span :class="stages[1].unlocked ? '' : 'opacity-40'">🛡️</span>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <p class="font-semibold" :style="stages[1].unlocked ? 'color: var(--text-primary);' : 'color: var(--text-muted);'">Safety & Security</p>
+                                        <span x-show="!stages[1].unlocked" class="text-xs px-2 py-0.5 rounded" style="background: var(--bg-muted); color: var(--text-muted);">Locked</span>
+                                        <span x-show="currentStageIndex === 1" class="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded">Current</span>
+                                    </div>
+                                    <p class="text-sm" style="color: var(--text-secondary);">Stability, health, resources</p>
+                                </div>
+                                <div class="w-16 text-right">
+                                    <span class="text-sm font-medium" :style="stages[1].unlocked ? 'color: rgb(249, 115, 22);' : 'color: var(--text-muted);'" x-text="stages[1].progress + '%'"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Physiological -->
+                        <div @click="selectStage(0)" class="cursor-pointer group">
+                            <div class="flex items-center gap-4 p-4 rounded-xl transition-all"
+                                 :class="selectedStage === 0 ? 'ring-2 ring-red-500' : ''"
+                                 :style="selectedStage === 0 ? 'background: rgba(239, 68, 68, 0.1);' : 'background: var(--bg-muted);'">
+                                <div class="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-2xl">
+                                    <span>🌿</span>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <p class="font-semibold" style="color: var(--text-primary);">Physiological</p>
+                                        <span x-show="currentStageIndex === 0" class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded">Current</span>
+                                    </div>
+                                    <p class="text-sm" style="color: var(--text-secondary);">Sleep, nutrition, energy, rest</p>
+                                </div>
+                                <div class="w-16 text-right">
+                                    <span class="text-sm font-medium text-red-600" x-text="stages[0].progress + '%'"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STAGE DETAILS -->
+                <div class="card-glass p-6">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                             :style="'background-color: ' + stages[selectedStage].color + '22'">
+                            <span x-text="stages[selectedStage].emoji"></span>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold" style="color: var(--text-primary);" x-text="stages[selectedStage].name"></h3>
+                            <p class="text-sm" style="color: var(--text-secondary);" x-text="stages[selectedStage].subtitle"></p>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="mb-6">
+                        <div class="flex justify-between text-sm mb-2">
+                            <span style="color: var(--text-secondary);">Stage Progress</span>
+                            <span class="font-medium" :style="'color: ' + stages[selectedStage].color" x-text="stages[selectedStage].progress + '%'"></span>
+                        </div>
+                        <div class="h-3 rounded-full overflow-hidden" style="background: var(--bg-muted);">
+                            <div class="h-full rounded-full transition-all duration-500"
+                                 :style="'width: ' + stages[selectedStage].progress + '%; background-color: ' + stages[selectedStage].color"></div>
+                        </div>
+                    </div>
+
+                    <!-- Focus Areas -->
+                    <div class="mb-6">
+                        <p class="text-sm font-medium mb-3" style="color: var(--text-primary);">Focus Areas</p>
+                        <div class="flex flex-wrap gap-2">
+                            <template x-for="focus in stages[selectedStage].focuses" :key="focus">
+                                <span class="px-3 py-1.5 rounded-full text-sm"
+                                      :style="'background-color: ' + stages[selectedStage].color + '15; color: ' + stages[selectedStage].color"
+                                      x-text="focus"></span>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Activities -->
+                    <div>
+                        <p class="text-sm font-medium mb-3" style="color: var(--text-primary);">Suggested Activities</p>
+                        <div class="space-y-2">
+                            <template x-for="activity in stages[selectedStage].activities" :key="activity.name">
+                                <div class="flex items-center gap-3 p-3 rounded-xl" style="background: var(--bg-muted);">
+                                    <span class="text-xl" x-text="activity.icon"></span>
+                                    <div class="flex-1">
+                                        <p class="font-medium text-sm" style="color: var(--text-primary);" x-text="activity.name"></p>
+                                        <p class="text-xs" style="color: var(--text-muted);" x-text="activity.desc"></p>
+                                    </div>
+                                    <span x-show="!hasData" class="text-xs px-2 py-1 rounded" style="background: var(--bg-muted); color: var(--text-muted);">Locked</span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CHALLENGES SECTION -->
+            <div class="card-glass p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h3 class="text-lg font-bold" style="color: var(--text-primary);">Active Challenges</h3>
+                        <p class="text-sm" style="color: var(--text-secondary);">7-day growth journeys</p>
+                    </div>
+                    <span x-show="!hasData" class="text-xs px-3 py-1.5 rounded-full" style="background: var(--bg-muted); color: var(--text-muted);">Complete assessment to unlock</span>
+                </div>
+
+                <!-- Empty State Challenges -->
+                <div x-show="!hasData" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="p-5 rounded-xl text-center opacity-60" style="border: 2px dashed var(--border-default);">
+                        <span class="text-3xl block mb-2">😴</span>
+                        <p class="font-medium" style="color: var(--text-muted);">Sleep Reset</p>
+                        <p class="text-xs mt-1" style="color: var(--text-muted);">7-day challenge</p>
+                    </div>
+                    <div class="p-5 rounded-xl text-center opacity-40" style="border: 2px dashed var(--border-default);">
+                        <span class="text-3xl block mb-2">🧘</span>
+                        <p class="font-medium" style="color: var(--text-muted);">Mindful Minutes</p>
+                        <p class="text-xs mt-1" style="color: var(--text-muted);">7-day challenge</p>
+                    </div>
+                    <div class="p-5 rounded-xl text-center opacity-30" style="border: 2px dashed var(--border-default);">
+                        <span class="text-3xl block mb-2">💪</span>
+                        <p class="font-medium" style="color: var(--text-muted);">Energy Boost</p>
+                        <p class="text-xs mt-1" style="color: var(--text-muted);">7-day challenge</p>
+                    </div>
+                </div>
+
+                <!-- With Data Challenges -->
+                <div x-show="hasData" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <template x-for="challenge in challenges" :key="challenge.name">
+                        <div class="p-5 rounded-xl cursor-pointer transition-all hover:shadow-sm"
+                             :style="challenge.active ? 'background: var(--color-primary-50); border: 1px solid var(--color-primary-200);' : 'background: var(--bg-muted); border: 1px solid var(--border-default);'">
+                            <div class="flex items-start justify-between mb-3">
+                                <span class="text-3xl" x-text="challenge.icon"></span>
+                                <span x-show="challenge.active" class="badge-primary text-xs">Active</span>
+                            </div>
+                            <p class="font-semibold" style="color: var(--text-primary);" x-text="challenge.name"></p>
+                            <p class="text-sm mt-1" style="color: var(--text-secondary);" x-text="challenge.desc"></p>
+                            <div class="mt-3">
+                                <div class="flex justify-between text-xs mb-1" style="color: var(--text-muted);">
+                                    <span x-text="challenge.day + '/7 days'"></span>
+                                    <span x-text="Math.round(challenge.day / 7 * 100) + '%'"></span>
+                                </div>
+                                <div class="h-1.5 rounded-full overflow-hidden" style="background: var(--bg-muted);">
+                                    <div class="h-full rounded-full" style="background: var(--color-primary-500);" :style="'width: ' + (challenge.day / 7 * 100) + '%'"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        function growthPage() {
+            return {
+                // Merge shared data
+                ...sharedPageData('growth'),
+
+                // Page-specific state
+                dataLoaded: false,
+                hasData: false,
+                selectedStage: 0,
+                currentStageIndex: 0,
+
+                stages: [
+                    {
+                        name: 'Physiological',
+                        subtitle: 'Foundation of wellbeing',
+                        emoji: '🌿',
+                        color: '#ef4444',
+                        progress: 0,
+                        unlocked: true,
+                        focuses: ['Sleep Quality', 'Nutrition', 'Energy Levels', 'Rest'],
+                        activities: [
+                            { icon: '😴', name: 'Sleep Tracker', desc: 'Log your sleep patterns' },
+                            { icon: '🥗', name: 'Nutrition Check', desc: 'Daily food awareness' },
+                            { icon: '💧', name: 'Hydration Goal', desc: 'Track water intake' }
+                        ]
+                    },
+                    {
+                        name: 'Safety & Security',
+                        subtitle: 'Building stability',
+                        emoji: '🛡️',
+                        color: '#f97316',
+                        progress: 0,
+                        unlocked: false,
+                        focuses: ['Financial Wellness', 'Health Security', 'Routine', 'Environment'],
+                        activities: [
+                            { icon: '📋', name: 'Daily Planning', desc: 'Structure your day' },
+                            { icon: '🏠', name: 'Safe Space', desc: 'Create calm environments' },
+                            { icon: '💰', name: 'Money Mindset', desc: 'Financial awareness' }
+                        ]
+                    },
+                    {
+                        name: 'Love & Belonging',
+                        subtitle: 'Connection & community',
+                        emoji: '❤️',
+                        color: '#eab308',
+                        progress: 0,
+                        unlocked: false,
+                        focuses: ['Relationships', 'Community', 'Intimacy', 'Friendship'],
+                        activities: [
+                            { icon: '💬', name: 'Connect Daily', desc: 'Reach out to someone' },
+                            { icon: '🤝', name: 'Acts of Kindness', desc: 'Give without expecting' },
+                            { icon: '👥', name: 'Community Time', desc: 'Join group activities' }
+                        ]
+                    },
+                    {
+                        name: 'Esteem',
+                        subtitle: 'Confidence & achievement',
+                        emoji: '🏆',
+                        color: '#22c55e',
+                        progress: 0,
+                        unlocked: false,
+                        focuses: ['Self-Respect', 'Achievement', 'Recognition', 'Confidence'],
+                        activities: [
+                            { icon: '🎯', name: 'Goal Setting', desc: 'Define what matters' },
+                            { icon: '📝', name: 'Wins Journal', desc: 'Celebrate achievements' },
+                            { icon: '💪', name: 'Skill Building', desc: 'Learn something new' }
+                        ]
+                    },
+                    {
+                        name: 'Self-Actualization',
+                        subtitle: 'Purpose & meaning',
+                        emoji: '🌟',
+                        color: '#6366f1',
+                        progress: 0,
+                        unlocked: false,
+                        focuses: ['Purpose', 'Creativity', 'Growth', 'Authenticity'],
+                        activities: [
+                            { icon: '🎨', name: 'Creative Expression', desc: 'Make something new' },
+                            { icon: '🧭', name: 'Values Reflection', desc: 'Align with your truth' },
+                            { icon: '🌱', name: 'Legacy Thinking', desc: 'Impact beyond yourself' }
+                        ]
+                    }
+                ],
+
+                challenges: [
+                    { name: 'Sleep Reset', icon: '😴', desc: 'Improve your sleep quality', day: 3, active: true },
+                    { name: 'Gratitude Practice', icon: '🙏', desc: 'Daily thankfulness', day: 0, active: false },
+                    { name: 'Mindful Moments', icon: '🧘', desc: '5 minutes of presence', day: 0, active: false }
+                ],
+
+                get currentStage() {
+                    return this.stages[this.currentStageIndex];
+                },
+
+                async init() {
+                    await this.initShared();
+                    if (this.session) {
+                        await this.fetchGrowthData();
+                    }
+
+                    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+                        this.session = session;
+                        if (session) {
+                            this.userEmail = session.user.email;
+                            await this.fetchGrowthData();
+                        }
+                    });
+                },
+
+                async fetchGrowthData() {
+                    // Check if user has completed assessment by checking for mood entries
+                    const { count } = await supabaseClient
+                        .from('mood_entries')
+                        .select('*', { count: 'exact', head: true });
+
+                    this.hasData = count > 0;
+
+                    if (this.hasData) {
+                        // Simulate progress based on entries (in real app, this would come from user_profiles)
+                        this.stages[0].progress = Math.min(100, count * 10);
+                        this.stages[0].unlocked = true;
+
+                        if (this.stages[0].progress >= 50) {
+                            this.stages[1].unlocked = true;
+                            this.stages[1].progress = Math.max(0, (count - 5) * 10);
+                        }
+                    }
+
+                    this.dataLoaded = true;
+                },
+
+                selectStage(index) {
+                    this.selectedStage = index;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

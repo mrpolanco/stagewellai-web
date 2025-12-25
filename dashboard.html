@@ -1,0 +1,2006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stagewell AI - Insight Center</title>
+    <!-- Tailwind CSS (via CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js (via CDN) for logic -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Supabase JS (via CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Chart.js (via CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Theme System -->
+    <link rel="stylesheet" href="theme.css">
+
+    <script>
+        // Initialize theme before page renders
+        (function() {
+            const savedTheme = localStorage.getItem('stagewell-theme') || 'default';
+            const savedMode = localStorage.getItem('stagewell-mode') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.documentElement.setAttribute('data-mode', savedMode);
+        })();
+    </script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            200: '#ddd6fe',
+                            300: '#c4b5fd',
+                            400: '#a78bfa',
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                            700: '#6d28d9',
+                        },
+                        mood: {
+                            empowered: '#f97316',
+                            joyful: '#fbbf24',
+                            calm: '#14b8a6',
+                            neutral: '#6b7280',
+                            anxious: '#a855f7',
+                            sad: '#3b82f6',
+                            angry: '#ef4444',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+        .chart-container { position: relative; height: 280px; }
+        @media (min-width: 768px) { .chart-container { height: 320px; } }
+
+        /* Line chart placeholder animation */
+        .animate-draw {
+            animation: drawLine 2s ease-out forwards;
+        }
+        @keyframes drawLine {
+            to { stroke-dashoffset: 0; }
+        }
+
+        /* Confetti burst */
+        @keyframes confetti-fall {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+        .confetti-piece {
+            position: fixed;
+            top: -10px;
+            animation: confetti-fall 3s ease-in-out forwards;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* Range slider styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            height: 8px;
+            border-radius: 9999px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            border: 2px solid var(--color-primary-500);
+            transition: transform 0.15s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            border: 2px solid var(--color-primary-500);
+        }
+
+        /* Mood slider specific styles */
+        .mood-slider {
+            height: 6px;
+        }
+        .mood-slider::-webkit-slider-thumb {
+            width: 24px;
+            height: 24px;
+            border: 3px solid #14b8a6;
+            background: white;
+        }
+        .mood-slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border: 3px solid #14b8a6;
+            background: white;
+        }
+    </style>
+</head>
+<body class="bg-wavy font-sans antialiased min-h-screen transition-colors duration-300"
+      x-data="dashboard()"
+      :class="darkMode ? 'dark' : ''">
+
+    <!-- CONFETTI CONTAINER (for celebrations) -->
+    <div id="confetti-container" class="fixed inset-0 pointer-events-none z-50"></div>
+
+    <!-- MOOD LOGGING MODAL (Multi-step like iOS app) -->
+    <div x-show="showMoodModal" x-cloak
+         class="fixed inset-0 z-40 flex items-center justify-center p-4"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" @click="showMoodModal = false"></div>
+
+        <!-- Modal Content -->
+        <div class="relative w-full max-w-md card-glass overflow-hidden animate-fade-in max-h-[90vh] flex flex-col"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95"
+             x-transition:enter-end="opacity-100 scale-100">
+
+            <!-- Header -->
+            <div class="p-4 flex items-center justify-between flex-shrink-0" style="background: linear-gradient(135deg, #e0f2fe, #f0f9ff); border-bottom: 1px solid var(--border-default);">
+                <button @click="moodStep === 1 ? showMoodModal = false : moodStep--"
+                        class="px-4 py-2 rounded-full text-sm font-semibold transition-colors"
+                        :style="moodStep === 1 ? 'background: white; color: #1f2937;' : 'background: white; color: #ef4444;'">
+                    <span x-text="moodStep === 1 ? 'Cancel' : 'Back'"></span>
+                </button>
+                <h2 class="font-bold text-lg" style="color: #1f2937;" x-text="moodStep === 3 ? 'Details' : 'Emotion'"></h2>
+                <button x-show="moodStep === 3"
+                        @click="saveMoodEntry()"
+                        :disabled="savingMood"
+                        class="px-4 py-2 rounded-full text-sm font-semibold text-white transition-colors disabled:opacity-50"
+                        style="background: #ef4444;">
+                    <span x-show="!savingMood">Save</span>
+                    <span x-show="savingMood">...</span>
+                </button>
+                <div x-show="moodStep !== 3" class="w-16"></div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="h-1 flex-shrink-0" style="background: #e5e7eb;">
+                <div class="h-full transition-all duration-300" style="background: #ef4444;"
+                     :style="'width: ' + (moodStep * 33.33) + '%'"></div>
+            </div>
+
+            <!-- Step Content -->
+            <div class="flex-1 overflow-y-auto" style="background: linear-gradient(180deg, #e0f2fe, #f0f9ff);">
+
+                <!-- STEP 1: Pleasantness -->
+                <div x-show="moodStep === 1" class="p-6">
+                    <h3 class="text-xl font-bold text-center mb-8" style="color: #1f2937;">Choose how you've felt overall today</h3>
+
+                    <!-- Emotion Flower Visual -->
+                    <div class="relative w-48 h-48 mx-auto mb-8">
+                        <svg viewBox="0 0 200 200" class="w-full h-full">
+                            <!-- Petals representing different emotions -->
+                            <ellipse cx="100" cy="60" rx="35" ry="50" fill="#86efac" fill-opacity="0.7" transform="rotate(0, 100, 100)"/>
+                            <ellipse cx="100" cy="60" rx="35" ry="50" fill="#fbbf24" fill-opacity="0.7" transform="rotate(72, 100, 100)"/>
+                            <ellipse cx="100" cy="60" rx="35" ry="50" fill="#67e8f9" fill-opacity="0.7" transform="rotate(144, 100, 100)"/>
+                            <ellipse cx="100" cy="60" rx="35" ry="50" fill="#c4b5fd" fill-opacity="0.7" transform="rotate(216, 100, 100)"/>
+                            <ellipse cx="100" cy="60" rx="35" ry="50" fill="#fca5a5" fill-opacity="0.7" transform="rotate(288, 100, 100)"/>
+                            <!-- Center -->
+                            <circle cx="100" cy="100" r="20" fill="white" fill-opacity="0.9"/>
+                        </svg>
+                    </div>
+
+                    <!-- Current Pleasantness Label -->
+                    <p class="text-2xl font-bold text-center mb-6" style="color: #1f2937;" x-text="pleasantnessLabel"></p>
+
+                    <!-- Pleasantness Slider -->
+                    <div class="px-4">
+                        <div class="flex justify-between text-xs font-medium uppercase tracking-wide mb-2" style="color: #6b7280;">
+                            <span>Very Unpleasant</span>
+                            <span>Very Pleasant</span>
+                        </div>
+                        <input type="range"
+                               x-model="pleasantness"
+                               min="1"
+                               max="5"
+                               class="w-full h-2 rounded-full appearance-none cursor-pointer mood-slider"
+                               style="background: linear-gradient(to right, #14b8a6 0%, #14b8a6 var(--slider-fill), #d1d5db var(--slider-fill), #d1d5db 100%);"
+                               :style="'--slider-fill: ' + ((pleasantness - 1) * 25) + '%'">
+                    </div>
+
+                    <!-- Next Button -->
+                    <button @click="moodStep = 2"
+                            class="w-full mt-8 py-4 rounded-xl font-semibold text-white text-lg transition-all hover:opacity-90"
+                            style="background: #ef4444;">
+                        Next
+                    </button>
+                </div>
+
+                <!-- STEP 2: Feeling Selection -->
+                <div x-show="moodStep === 2" class="p-6">
+                    <!-- Selected Emotion Icon -->
+                    <div class="w-24 h-24 rounded-full mx-auto mb-4 flex items-center justify-center" style="background: #ef4444;">
+                        <span class="text-white text-4xl">—</span>
+                    </div>
+
+                    <p class="text-2xl font-bold text-center mb-6" style="color: #1f2937;" x-text="pleasantnessLabel"></p>
+
+                    <p class="font-semibold mb-4" style="color: #1f2937;">What best describes this feeling?</p>
+
+                    <!-- Feeling Options Grid -->
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <template x-for="feeling in currentFeelings.slice(0, 5)" :key="feeling">
+                            <button @click="selectedFeeling = feeling"
+                                    class="py-3 px-4 rounded-full text-sm font-medium transition-all"
+                                    :class="selectedFeeling === feeling ? 'ring-2 ring-offset-2 ring-teal-500' : ''"
+                                    :style="selectedFeeling === feeling ? 'background: #ccfbf1; color: #0d9488;' : 'background: white; color: #374151;'">
+                                <span x-text="feeling"></span>
+                            </button>
+                        </template>
+                        <button @click="showAllFeelings = true"
+                                x-show="!showAllFeelings && currentFeelings.length > 5"
+                                class="py-3 px-4 rounded-full text-sm font-medium"
+                                style="color: #6b7280;">
+                            Show More >
+                        </button>
+                    </div>
+
+                    <!-- Extended Feelings (when Show More clicked) -->
+                    <div x-show="showAllFeelings" class="grid grid-cols-2 gap-3 mb-4">
+                        <template x-for="feeling in currentFeelings.slice(5)" :key="feeling">
+                            <button @click="selectedFeeling = feeling"
+                                    class="py-3 px-4 rounded-full text-sm font-medium transition-all"
+                                    :class="selectedFeeling === feeling ? 'ring-2 ring-offset-2 ring-teal-500' : ''"
+                                    :style="selectedFeeling === feeling ? 'background: #ccfbf1; color: #0d9488;' : 'background: white; color: #374151;'">
+                                <span x-text="feeling"></span>
+                            </button>
+                        </template>
+                    </div>
+
+                    <!-- Next Button -->
+                    <button @click="moodStep = 3"
+                            :disabled="!selectedFeeling"
+                            class="w-full mt-4 py-4 rounded-xl font-semibold text-white text-lg transition-all disabled:opacity-40"
+                            style="background: #ef4444;">
+                        Next
+                    </button>
+                </div>
+
+                <!-- STEP 3: Impact Factors -->
+                <div x-show="moodStep === 3" class="p-6">
+                    <!-- Selected Feeling Summary -->
+                    <div class="flex items-center gap-4 mb-6">
+                        <div class="w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0" style="background: #ef4444;">
+                            <span class="text-white text-2xl">—</span>
+                        </div>
+                        <div>
+                            <p class="text-xl font-bold" style="color: #1f2937;" x-text="selectedFeeling || pleasantnessLabel"></p>
+                            <p class="text-sm" style="color: #6b7280;" x-text="new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })"></p>
+                        </div>
+                    </div>
+
+                    <p class="font-semibold mb-4" style="color: #1f2937;">What's having the biggest impact on you?</p>
+
+                    <!-- Impact Factors Grid -->
+                    <div class="grid grid-cols-2 gap-3 mb-6">
+                        <template x-for="impact in impactFactors" :key="impact">
+                            <button @click="toggleImpact(impact)"
+                                    class="py-3 px-4 rounded-full text-sm font-medium transition-all"
+                                    :class="selectedImpacts.includes(impact) ? 'ring-2 ring-offset-2 ring-teal-500' : ''"
+                                    :style="selectedImpacts.includes(impact) ? 'background: #ccfbf1; color: #0d9488;' : 'background: white; color: #374151;'">
+                                <span x-text="impact"></span>
+                            </button>
+                        </template>
+                    </div>
+
+                    <!-- Done Button -->
+                    <button @click="saveMoodEntry()"
+                            :disabled="savingMood"
+                            class="w-full py-4 rounded-xl font-semibold text-white text-lg transition-all hover:opacity-90 disabled:opacity-50"
+                            style="background: #ef4444;">
+                        <span x-show="!savingMood">Done</span>
+                        <span x-show="savingMood" class="flex items-center justify-center gap-2">
+                            <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                            </svg>
+                            Saving...
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUTH SCREEN -->
+    <div x-show="!session" class="min-h-screen flex items-center justify-center p-4">
+        <div class="max-w-md w-full card-glass overflow-hidden animate-fade-in">
+            <div class="bg-gradient-primary p-8 text-center relative overflow-hidden">
+                <!-- Decorative elements -->
+                <div class="absolute inset-0 overflow-hidden">
+                    <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                    <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                </div>
+                <div class="relative">
+                    <h1 class="text-3xl font-bold text-white mb-2">Stagewell AI</h1>
+                    <p class="text-white/80">Insight Center</p>
+                </div>
+            </div>
+            <div class="p-8" style="background: var(--bg-surface);">
+                <p class="text-center mb-6" style="color: var(--text-secondary);">Sign in to view your wellness insights.</p>
+
+                <!-- GOOGLE SIGN-IN -->
+                <div x-show="!emailSent">
+                    <button @click="signInWithGoogle"
+                            :disabled="loading"
+                            class="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl font-medium transition-all hover:shadow-md disabled:opacity-50"
+                            style="background: white; border: 1px solid #e5e7eb; color: #374151;">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        </svg>
+                        <span>Continue with Google</span>
+                    </button>
+
+                    <!-- DIVIDER -->
+                    <div class="flex items-center gap-4 my-6">
+                        <div class="flex-1 h-px" style="background: var(--border-default);"></div>
+                        <span class="text-xs font-medium" style="color: var(--text-muted);">or sign in with email</span>
+                        <div class="flex-1 h-px" style="background: var(--border-default);"></div>
+                    </div>
+
+                    <!-- MAGIC LINK FORM -->
+                    <form @submit.prevent="signInWithMagicLink" class="space-y-4">
+                        <div>
+                            <label for="email" class="sr-only">Email address</label>
+                            <input type="email" x-model="loginEmail" required
+                                   class="input-themed w-full"
+                                   placeholder="Enter your email">
+                        </div>
+                        <button type="submit"
+                                :disabled="loading"
+                                class="btn-primary w-full flex items-center justify-center gap-2 py-3 disabled:opacity-50">
+                            <span x-show="!loading">✨ Send Magic Link</span>
+                            <span x-show="loading" class="flex items-center gap-2">
+                                <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                                </svg>
+                                Sending...
+                            </span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- SUCCESS MESSAGE -->
+                <div x-show="emailSent" x-cloak class="text-center animate-fade-in">
+                    <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                        ✉️
+                    </div>
+                    <h3 class="text-lg font-bold mb-2" style="color: var(--text-primary);">Check your email</h3>
+                    <p class="text-sm mb-6" style="color: var(--text-secondary);">
+                        We sent a magic link to <strong x-text="loginEmail"></strong>.<br>
+                        Click it to log in instantly.
+                    </p>
+                    <button @click="emailSent = false" class="text-sm font-medium hover:underline" style="color: var(--color-primary-600);">
+                        Try a different email
+                    </button>
+                </div>
+
+                <p class="mt-4 text-xs text-center" style="color: var(--text-muted);">
+                    Securely connected via Supabase Auth
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD SCREEN -->
+    <div x-show="session" x-cloak class="min-h-screen flex flex-col lg:flex-row">
+
+        <!-- SIDEBAR -->
+        <aside class="w-full lg:w-72 sidebar-glass flex-shrink-0 lg:min-h-screen">
+            <div class="p-6">
+                <a href="dashboard.html" class="block">
+                    <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-primary">
+                        Stagewell
+                    </h2>
+                    <p class="text-xs mt-1 uppercase tracking-wider" style="color: var(--text-muted);">Insight Center</p>
+                </a>
+            </div>
+            <nav class="px-4 pb-4 lg:pb-0 flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible scrollbar-hide">
+                <a href="dashboard.html" class="sidebar-item active flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">📊</span>
+                    <span class="hidden lg:inline">Overview</span>
+                </a>
+                <a href="habits.html" class="sidebar-item flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">✅</span>
+                    <span class="hidden lg:inline">Habits & Goals</span>
+                    <span class="hidden lg:inline ml-auto badge-primary text-xs">Sync</span>
+                </a>
+                <a href="journal.html" class="sidebar-item flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">📓</span>
+                    <span class="hidden lg:inline">Journal</span>
+                    <span class="hidden lg:inline ml-auto text-xs px-2 py-0.5 rounded-full" style="background: var(--bg-muted); color: var(--text-muted);">E2E</span>
+                </a>
+                <a href="growth.html" class="sidebar-item flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">🌱</span>
+                    <span class="hidden lg:inline">Growth Path</span>
+                </a>
+                <a href="settings.html" class="sidebar-item flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">⚙️</span>
+                    <span class="hidden lg:inline">Settings</span>
+                </a>
+            </nav>
+
+            <!-- User Profile Section -->
+            <div class="hidden lg:block p-4 mt-auto" style="border-top: 1px solid var(--border-default);">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold shadow-lg">
+                        <span x-text="userEmail ? userEmail[0].toUpperCase() : 'U'"></span>
+                    </div>
+                    <div class="overflow-hidden flex-1">
+                        <p class="text-sm font-medium truncate" style="color: var(--text-primary);" x-text="userEmail"></p>
+                        <button @click="signOut" class="text-xs text-red-500 hover:underline">Sign Out</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+
+            <!-- HEADER WITH GREETING & THEME CONTROLS -->
+            <div class="flex flex-col md:flex-row md:items-start justify-between mb-8 gap-4">
+                <!-- Personalized Greeting (like Asana) -->
+                <div class="animate-fade-in">
+                    <p class="text-sm font-medium mb-1" style="color: var(--text-muted);" x-text="currentDateFormatted"></p>
+                    <h1 class="text-2xl md:text-3xl font-bold" style="color: var(--text-primary);" x-text="greeting + ', ' + userFirstName"></h1>
+                    <p class="mt-1" style="color: var(--text-secondary);">Your wellness snapshot for today</p>
+                </div>
+
+                <!-- Theme Controls -->
+                <div class="flex items-center gap-3 flex-wrap">
+                    <!-- Sync Status -->
+                    <div class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
+                         style="background: var(--color-accent-500); background: rgba(20, 184, 166, 0.1); color: rgb(13, 148, 136);">
+                        <span class="relative flex h-2 w-2">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style="background: var(--color-accent-500);"></span>
+                          <span class="relative inline-flex rounded-full h-2 w-2" style="background: var(--color-accent-500);"></span>
+                        </span>
+                        Synced
+                    </div>
+
+                    <!-- Dark Mode Toggle -->
+                    <button @click="toggleDarkMode" class="btn-ghost flex items-center gap-2" :title="darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
+                        <span x-show="!darkMode" class="text-xl">🌙</span>
+                        <span x-show="darkMode" class="text-xl">☀️</span>
+                    </button>
+
+                    <!-- Theme Picker -->
+                    <div class="theme-picker" x-data="{ open: false }">
+                        <button @click="open = !open" class="btn-ghost flex items-center gap-2 px-3 py-2 rounded-lg" style="background: var(--bg-muted);">
+                            <span x-text="themeEmoji" class="text-lg"></span>
+                            <span class="hidden sm:inline text-sm font-medium" style="color: var(--text-secondary);" x-text="themeName"></span>
+                            <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+
+                        <!-- Theme Dropdown -->
+                        <div x-show="open" @click.away="open = false" x-transition
+                             class="theme-picker-dropdown animate-fade-in">
+                            <p class="text-xs font-semibold uppercase tracking-wider mb-3" style="color: var(--text-muted);">Color Theme</p>
+                            <div class="space-y-1">
+                                <template x-for="t in themes" :key="t.id">
+                                    <button @click="setTheme(t.id); open = false"
+                                            class="theme-option w-full"
+                                            :class="{ 'active': currentTheme === t.id }">
+                                        <div class="theme-swatch" :style="'background: linear-gradient(135deg, ' + t.gradient[0] + ', ' + t.gradient[1] + ')'">
+                                            <span x-text="t.emoji" class="drop-shadow"></span>
+                                        </div>
+                                        <div class="flex-1 text-left">
+                                            <p class="font-medium text-sm" style="color: var(--text-primary);" x-text="t.name"></p>
+                                        </div>
+                                        <svg x-show="currentTheme === t.id" class="w-5 h-5" style="color: var(--color-primary-500);" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mobile Sign Out -->
+                    <button @click="signOut" class="lg:hidden btn-ghost" style="color: var(--text-muted);">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ONBOARDING BANNER (shown when no data) -->
+            <div x-show="!hasChartData && dataLoaded" x-cloak
+                 class="mb-8 bg-gradient-primary rounded-2xl p-6 md:p-8 text-white relative overflow-hidden animate-fade-in">
+                <!-- Decorative pattern -->
+                <div class="absolute inset-0 overflow-hidden">
+                    <div class="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
+                    <div class="absolute -bottom-20 -left-20 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
+                    <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-white/5 rounded-full blur-3xl"></div>
+                </div>
+                <div class="relative flex flex-col md:flex-row md:items-center gap-6">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="text-3xl">👋</span>
+                            <h2 class="text-2xl font-bold">Welcome to Your Insight Center!</h2>
+                        </div>
+                        <p class="text-white/90 text-lg mb-4">
+                            This is where your wellness journey comes to life. Start by logging your first mood in the iOS app to see beautiful visualizations of your emotional patterns.
+                        </p>
+                        <div class="flex flex-wrap gap-3 text-sm">
+                            <div class="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
+                                <span>📊</span> Track patterns
+                            </div>
+                            <div class="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
+                                <span>🔒</span> 100% private
+                            </div>
+                            <div class="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
+                                <span>💡</span> AI insights
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <button @click="openApp()"
+                                class="w-32 h-32 md:w-40 md:h-40 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center cursor-pointer hover:bg-white/30 hover:scale-105 transition-all duration-200 border-0">
+                            <div class="text-center">
+                                <span class="text-5xl md:text-6xl block mb-2">📱</span>
+                                <p class="text-xs font-medium opacity-90">Open App</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STATS GRID -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <!-- Total Check-ins -->
+                <div class="card-glass p-5 relative overflow-hidden animate-fade-in" style="animation-delay: 0.1s;">
+                    <div class="relative">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-2xl">📝</span>
+                            <span class="text-xs font-medium uppercase tracking-wide" style="color: var(--text-muted);">Check-ins</span>
+                        </div>
+                        <p class="text-3xl font-bold" :style="hasChartData ? 'color: var(--text-primary)' : 'color: var(--text-muted)'" x-text="stats.totalMoods"></p>
+                        <p class="text-xs mt-1" :style="hasChartData ? 'color: var(--text-secondary)' : 'color: var(--color-primary-500)'">
+                            <span x-show="hasChartData">All time entries</span>
+                            <span x-show="!hasChartData" class="font-medium">Log your first mood!</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Current Streak -->
+                <div class="card-glass p-5 relative overflow-hidden animate-fade-in" style="animation-delay: 0.15s;">
+                    <div class="relative">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-2xl">🔥</span>
+                            <span class="text-xs font-medium uppercase tracking-wide" style="color: var(--text-muted);">Streak</span>
+                        </div>
+                        <p class="text-3xl font-bold" :style="hasChartData ? 'color: var(--text-primary)' : 'color: var(--text-muted)'">
+                            <span x-text="stats.streak"></span>
+                            <span class="text-lg font-normal" style="color: var(--text-muted);">days</span>
+                        </p>
+                        <div class="mt-2">
+                            <div class="flex justify-between text-xs mb-1" style="color: var(--text-muted);">
+                                <span x-show="hasChartData">Next milestone</span>
+                                <span x-show="!hasChartData" style="color: var(--color-primary-500);">Start your streak</span>
+                                <span x-show="hasChartData" x-text="stats.nextMilestone + ' days'"></span>
+                            </div>
+                            <div class="h-1.5 rounded-full overflow-hidden" style="background: var(--bg-muted);">
+                                <div class="h-full rounded-full transition-all duration-500" style="background: linear-gradient(90deg, #f97316, #fbbf24);"
+                                     :style="'width: ' + (hasChartData ? stats.streakProgress : 0) + '%'"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dominant Mood -->
+                <div class="card-glass p-5 relative overflow-hidden animate-fade-in" style="animation-delay: 0.2s;">
+                    <div class="relative">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-2xl" x-text="stats.dominantMoodEmoji"></span>
+                            <span class="text-xs font-medium uppercase tracking-wide" style="color: var(--text-muted);">Top Mood</span>
+                        </div>
+                        <p class="text-xl font-bold capitalize" :style="hasChartData ? 'color: var(--text-primary)' : 'color: var(--text-muted)'" x-text="stats.dominantMood || 'Awaiting'"></p>
+                        <p class="text-xs mt-1" :style="hasChartData ? 'color: var(--text-secondary)' : 'color: var(--color-primary-500)'">
+                            <span x-show="hasChartData">This week</span>
+                            <span x-show="!hasChartData" class="font-medium">Your data</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Last Check-in -->
+                <div class="card-glass p-5 relative overflow-hidden animate-fade-in" style="animation-delay: 0.25s;">
+                    <div class="relative">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-2xl">🕒</span>
+                            <span class="text-xs font-medium uppercase tracking-wide" style="color: var(--text-muted);">Last Entry</span>
+                        </div>
+                        <p class="text-lg font-bold" :style="hasChartData ? 'color: var(--text-primary)' : 'color: var(--text-muted)'" x-text="stats.lastCheckin"></p>
+                        <p class="text-xs mt-1" :style="hasChartData ? 'color: var(--text-secondary)' : 'color: var(--color-primary-500)'" x-text="stats.lastCheckinDate || 'Ready when you are'"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TODAY RING + PATHS ROW -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+
+                <!-- TODAY RING -->
+                <div class="card-glass p-6 animate-fade-in" style="animation-delay: 0.3s;">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold" style="color: var(--text-primary);">Today</h3>
+                        <span class="text-xs font-medium" style="color: var(--text-muted);" x-text="new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })"></span>
+                    </div>
+
+                    <!-- Ring SVG -->
+                    <div class="relative w-40 h-40 mx-auto mb-4">
+                        <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                            <!-- Background ring -->
+                            <circle cx="50" cy="50" r="42" stroke-width="8" fill="none" style="stroke: var(--bg-muted);"/>
+                            <!-- Mood segment (green) -->
+                            <circle cx="50" cy="50" r="42"
+                                    :stroke="dailyGoals.morning_mood ? '#22c55e' : 'var(--border-default)'"
+                                    stroke-width="8" fill="none"
+                                    stroke-dasharray="88 176"
+                                    stroke-linecap="round"
+                                    class="transition-all duration-500"/>
+                            <!-- Action segment (blue) -->
+                            <circle cx="50" cy="50" r="42"
+                                    :stroke="dailyGoals.tool_usage ? '#3b82f6' : 'var(--border-default)'"
+                                    stroke-width="8" fill="none"
+                                    stroke-dasharray="88 176"
+                                    stroke-dashoffset="-88"
+                                    stroke-linecap="round"
+                                    class="transition-all duration-500"/>
+                            <!-- Journal segment (purple) -->
+                            <circle cx="50" cy="50" r="42"
+                                    :stroke="dailyGoals.daily_reflection ? '#8b5cf6' : 'var(--border-default)'"
+                                    stroke-width="8" fill="none"
+                                    stroke-dasharray="88 176"
+                                    stroke-dashoffset="-176"
+                                    stroke-linecap="round"
+                                    class="transition-all duration-500"/>
+                        </svg>
+                        <!-- Center text -->
+                        <div class="absolute inset-0 flex flex-col items-center justify-center">
+                            <span class="text-3xl font-bold" style="color: var(--text-primary);" x-text="dailyGoalsCompleted + '/3'"></span>
+                            <span class="text-xs" style="color: var(--text-muted);">Complete</span>
+                        </div>
+                    </div>
+
+                    <!-- Goal chips -->
+                    <div class="flex flex-wrap justify-center gap-2">
+                        <button @click="dailyGoals.morning_mood ? toggleDailyGoal('morning_mood') : openMoodModal()"
+                                class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                                :class="dailyGoals.morning_mood ? 'bg-green-100 text-green-700' : 'hover:bg-green-50'"
+                                :style="!dailyGoals.morning_mood ? 'background: var(--bg-muted); color: var(--text-muted);' : ''"
+                                :title="dailyGoals.morning_mood ? 'Click to unmark' : 'Click to log your mood'">
+                            <span x-show="dailyGoals.morning_mood">✓</span>
+                            <span x-show="!dailyGoals.morning_mood">+</span>
+                            <span>Mood</span>
+                        </button>
+                        <button @click="toggleDailyGoal('tool_usage')"
+                                class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                                :class="dailyGoals.tool_usage ? 'bg-blue-100 text-blue-700' : ''"
+                                :style="!dailyGoals.tool_usage ? 'background: var(--bg-muted); color: var(--text-muted);' : ''">
+                            <span x-show="dailyGoals.tool_usage">✓</span>
+                            <span>Action</span>
+                        </button>
+                        <button @click="toggleDailyGoal('daily_reflection')"
+                                class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                                :class="dailyGoals.daily_reflection ? 'bg-purple-100 text-purple-700' : ''"
+                                :style="!dailyGoals.daily_reflection ? 'background: var(--bg-muted); color: var(--text-muted);' : ''">
+                            <span x-show="dailyGoals.daily_reflection">✓</span>
+                            <span>Journal</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ACTIVE PATHS (2 columns) -->
+                <div class="lg:col-span-2 card-glass p-6 animate-fade-in" style="animation-delay: 0.35s;">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 class="text-lg font-bold" style="color: var(--text-primary);">Active Paths</h3>
+                            <p class="text-sm" style="color: var(--text-secondary);">Your transformation journeys</p>
+                        </div>
+                        <a href="habits.html" class="text-sm font-medium hover:underline" style="color: var(--color-primary-500);">View All →</a>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div x-show="activePaths.length === 0" class="py-8 text-center">
+                        <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style="background: var(--color-primary-50);">
+                            <span class="text-3xl">🛤️</span>
+                        </div>
+                        <h4 class="font-semibold mb-2" style="color: var(--text-primary);">No active paths</h4>
+                        <p class="text-sm" style="color: var(--text-secondary);">Start a path in the iOS app to track progress here</p>
+                    </div>
+
+                    <!-- Paths Grid -->
+                    <div x-show="activePaths.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <template x-for="path in activePaths" :key="path.id">
+                            <div class="p-4 rounded-xl border transition-all hover:shadow-md"
+                                 :class="path.is_shared ? 'border-pink-200' : 'border-indigo-200'"
+                                 :style="path.is_shared ? 'background: linear-gradient(135deg, rgba(236, 72, 153, 0.1), rgba(168, 85, 247, 0.1))' : 'background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(59, 130, 246, 0.1))'">
+                                <!-- Header -->
+                                <div class="flex items-start justify-between mb-3">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xl" x-text="getPathCategoryEmoji(path.template_category)"></span>
+                                        <span class="text-xs font-medium px-2 py-0.5 rounded-full"
+                                              :class="path.is_shared ? 'bg-pink-100 text-pink-700' : 'bg-indigo-100 text-indigo-700'"
+                                              x-text="path.is_shared ? 'Shared' : 'Solo'"></span>
+                                    </div>
+                                    <span class="text-xs" style="color: var(--text-muted);">Day <span x-text="path.current_day"></span>/<span x-text="path.template_duration"></span></span>
+                                </div>
+
+                                <!-- Title -->
+                                <h4 class="font-semibold mb-2 line-clamp-1" style="color: var(--text-primary);" x-text="path.template_title"></h4>
+
+                                <!-- Progress bar -->
+                                <div class="mb-2">
+                                    <div class="h-2 rounded-full overflow-hidden" style="background: var(--bg-muted);">
+                                        <div class="h-full rounded-full transition-all duration-500"
+                                             :class="path.is_shared ? 'bg-gradient-to-r from-pink-400 to-purple-500' : 'bg-gradient-to-r from-indigo-400 to-blue-500'"
+                                             :style="'width: ' + (path.completion_percentage * 100) + '%'"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Stats -->
+                                <div class="flex items-center justify-between text-xs" style="color: var(--text-muted);">
+                                    <span x-text="Math.round(path.completion_percentage * 100) + '% complete'"></span>
+                                    <span x-show="path.current_streak > 0" class="flex items-center gap-1">
+                                        🔥 <span x-text="path.current_streak"></span> day streak
+                                    </span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HABITS BY FLOW -->
+            <div class="card-glass p-6 mb-8 animate-fade-in" style="animation-delay: 0.4s;">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h3 class="text-lg font-bold" style="color: var(--text-primary);">Today's Habits</h3>
+                        <p class="text-sm" style="color: var(--text-secondary);">Organized by wellness area</p>
+                    </div>
+                    <a href="habits.html" class="text-sm font-medium hover:underline" style="color: var(--color-primary-500);">Manage →</a>
+                </div>
+
+                <!-- Flow Tabs -->
+                <div class="flex flex-wrap gap-2 mb-6 pb-4" style="border-bottom: 1px solid var(--border-default);">
+                    <button @click="selectedFlow = 'all'"
+                            class="px-4 py-2 rounded-full text-sm font-medium transition-all"
+                            :class="selectedFlow === 'all' ? 'text-white' : ''"
+                            :style="selectedFlow === 'all' ? 'background: var(--color-primary-500);' : 'background: var(--bg-muted); color: var(--text-secondary);'">
+                        All
+                    </button>
+                    <template x-for="flow in habitFlows" :key="flow.name">
+                        <button @click="selectedFlow = flow.name"
+                                class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all"
+                                :class="selectedFlow === flow.name ? 'text-white' : ''"
+                                :style="selectedFlow === flow.name ? 'background-color: ' + flow.color : 'background: var(--bg-muted); color: var(--text-secondary);'">
+                            <span x-text="flow.icon"></span>
+                            <span x-text="flow.display_name"></span>
+                        </button>
+                    </template>
+                </div>
+
+                <!-- Empty State -->
+                <div x-show="filteredFlowHabits.length === 0" class="py-8 text-center">
+                    <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style="background: var(--bg-muted);">
+                        <span class="text-3xl">📱</span>
+                    </div>
+                    <p class="text-sm" style="color: var(--text-secondary);">Create habits in the iOS app to track here</p>
+                </div>
+
+                <!-- Habits Grid -->
+                <div x-show="filteredFlowHabits.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <template x-for="habit in filteredFlowHabits" :key="habit.id">
+                        <div class="flex items-center gap-3 p-3 rounded-xl transition-all"
+                             :class="isHabitCompletedToday(habit.id) ? 'bg-green-50 border border-green-100' : ''"
+                             :style="!isHabitCompletedToday(habit.id) ? 'background: var(--bg-muted);' : ''">
+                            <!-- Checkbox -->
+                            <button @click="toggleHabitFromDashboard(habit)"
+                                    class="w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0"
+                                    :class="isHabitCompletedToday(habit.id) ? 'bg-green-500 border-green-500 text-white' : ''"
+                                    :style="!isHabitCompletedToday(habit.id) ? 'border-color: var(--border-default);' : ''">
+                                <svg x-show="isHabitCompletedToday(habit.id)" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </button>
+                            <!-- Info -->
+                            <div class="flex-1 min-w-0">
+                                <p class="font-medium text-sm truncate"
+                                   :class="isHabitCompletedToday(habit.id) ? 'line-through text-gray-500' : ''"
+                                   :style="!isHabitCompletedToday(habit.id) ? 'color: var(--text-primary);' : ''"
+                                   x-text="habit.title"></p>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span class="text-xs px-1.5 py-0.5 rounded"
+                                          :style="'background-color: ' + getFlowColor(habit.habit_category) + '20; color: ' + getFlowColor(habit.habit_category)"
+                                          x-text="getFlowName(habit.habit_category)"></span>
+                                    <span x-show="habit.streak > 0" class="text-xs text-orange-600">🔥<span x-text="habit.streak"></span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- CHARTS ROW -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+
+                <!-- EMOTIONAL FLOW CHART (Main - 2 columns) -->
+                <div class="lg:col-span-2 card-glass p-6 relative overflow-hidden animate-fade-in" style="animation-delay: 0.45s;">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 class="text-lg font-bold" style="color: var(--text-primary);">Emotional Flow</h3>
+                            <p class="text-sm" style="color: var(--text-secondary);">Your mood journey over the last 14 days</p>
+                        </div>
+                        <div x-show="hasChartData" class="flex items-center gap-2 text-xs" style="color: var(--text-muted);">
+                            <span class="w-2 h-2 rounded-full" style="background: var(--color-primary-500);"></span>
+                            Mood Intensity
+                        </div>
+                    </div>
+
+                    <!-- Chart Canvas -->
+                    <div x-show="hasChartData" class="chart-container">
+                        <canvas id="emotionalFlowChart"></canvas>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div x-show="!hasChartData && dataLoaded" x-cloak class="chart-container flex items-center justify-center">
+                        <div class="text-center max-w-sm">
+                            <div class="relative mx-auto w-48 h-24 mb-6">
+                                <svg class="w-full h-full" viewBox="0 0 200 100" fill="none">
+                                    <path d="M0 80 Q25 60, 50 70 T100 50 T150 60 T200 40" stroke="var(--border-default)" stroke-width="3" stroke-linecap="round" fill="none"/>
+                                    <path d="M0 80 Q25 60, 50 70 T100 50 T150 60 T200 40" stroke="url(#gradient)" stroke-width="3" stroke-linecap="round" fill="none" stroke-dasharray="300" stroke-dashoffset="300" class="animate-draw"/>
+                                    <defs>
+                                        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                            <stop offset="0%" stop-color="var(--gradient-start)"/>
+                                            <stop offset="100%" stop-color="var(--gradient-end)"/>
+                                        </linearGradient>
+                                    </defs>
+                                </svg>
+                            </div>
+                            <p class="font-medium mb-2" style="color: var(--text-secondary);">Your emotional journey awaits</p>
+                            <p class="text-sm" style="color: var(--text-muted);">Log moods in the app to see your patterns visualized here</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SPECTRUM DOUGHNUT CHART -->
+                <div class="card-glass p-6 relative overflow-hidden animate-fade-in" style="animation-delay: 0.5s;">
+                    <div class="mb-6">
+                        <h3 class="text-lg font-bold" style="color: var(--text-primary);">Mood Spectrum</h3>
+                        <p class="text-sm" style="color: var(--text-secondary);">Distribution breakdown</p>
+                    </div>
+
+                    <!-- Chart -->
+                    <div x-show="hasChartData" class="relative">
+                        <div class="chart-container" style="height: 220px;">
+                            <canvas id="spectrumChart"></canvas>
+                        </div>
+                        <!-- Center Label -->
+                        <div class="absolute inset-0 flex items-center justify-center pointer-events-none" style="top: -20px;">
+                            <div class="text-center">
+                                <span class="text-4xl" x-text="stats.dominantMoodEmoji || '😊'"></span>
+                                <p class="text-xs mt-1 capitalize" style="color: var(--text-muted);" x-text="stats.dominantMood || 'Balanced'"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div x-show="!hasChartData && dataLoaded" x-cloak class="flex flex-col items-center justify-center py-8">
+                        <div class="relative w-32 h-32 mb-4">
+                            <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r="40" stroke-width="12" fill="none" style="stroke: var(--bg-muted);"/>
+                                <circle cx="50" cy="50" r="40" stroke-width="12" fill="none" stroke-dasharray="60 190" stroke-linecap="round" style="stroke: var(--border-default);"/>
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <span class="text-3xl">🎨</span>
+                            </div>
+                        </div>
+                        <p class="text-sm text-center" style="color: var(--text-muted);">Your mood colors<br/>will appear here</p>
+                    </div>
+
+                    <!-- Legend -->
+                    <div x-show="hasChartData" class="mt-4 grid grid-cols-2 gap-2">
+                        <template x-for="(item, index) in spectrumData.slice(0, 4)" :key="index">
+                            <div class="flex items-center gap-2 text-sm">
+                                <span class="w-3 h-3 rounded-full" :style="'background-color: ' + moodColors[item.mood]"></span>
+                                <span class="capitalize truncate" style="color: var(--text-secondary);" x-text="item.mood"></span>
+                                <span style="color: var(--text-muted);" class="ml-auto" x-text="item.count"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ACTIVITY & PRIVACY ROW -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                <!-- RECENT ACTIVITY STREAM -->
+                <div class="card-glass p-6 animate-fade-in" style="animation-delay: 0.55s;">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 class="text-lg font-bold" style="color: var(--text-primary);">Recent Activity</h3>
+                            <p class="text-sm" style="color: var(--text-secondary);">Your latest check-ins</p>
+                        </div>
+                        <span class="badge-primary">Last 5</span>
+                    </div>
+
+                    <div class="space-y-4">
+                        <!-- Empty State -->
+                        <template x-if="recentEntries.length === 0 && dataLoaded">
+                            <div class="py-6">
+                                <div class="space-y-3">
+                                    <div class="flex items-start gap-4 p-4 rounded-xl border-2 border-dashed" style="background: var(--bg-muted); border-color: var(--border-default);">
+                                        <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, rgba(20, 184, 166, 0.2), rgba(20, 184, 166, 0.1));">
+                                            <span class="text-2xl opacity-60">😌</span>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="h-4 rounded w-20 mb-2" style="background: var(--border-default);"></div>
+                                            <div class="flex items-center gap-2 text-sm" style="color: var(--text-muted);">
+                                                <span>🔒</span>
+                                                <span class="italic text-xs">Your first entry</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-center mt-6">
+                                    <p class="font-medium" style="color: var(--text-secondary);">Your journey starts here</p>
+                                    <button @click="openApp('mood')"
+                                            class="mt-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:scale-105"
+                                            style="background: var(--color-primary-500); color: white;">
+                                        📱 Open App to Log Mood
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template x-for="(entry, index) in recentEntries" :key="index">
+                            <div class="flex items-start gap-4 p-4 rounded-xl transition-colors" style="background: var(--bg-muted);">
+                                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                                     :class="getMoodBgClass(entry.mood_type)">
+                                    <span x-text="getMoodEmoji(entry.mood_type)"></span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <p class="font-semibold capitalize" style="color: var(--text-primary);" x-text="entry.mood_type"></p>
+                                        <span class="text-xs whitespace-nowrap" style="color: var(--text-muted);" x-text="formatTimeAgo(entry.created_at)"></span>
+                                    </div>
+                                    <div class="flex items-center gap-2 mt-2 text-sm" style="color: var(--text-secondary);">
+                                        <span class="text-base">🔒</span>
+                                        <span class="italic">Encrypted Personal Note</span>
+                                    </div>
+                                    <div class="mt-3 flex items-center gap-2">
+                                        <span class="text-xs" style="color: var(--text-muted);">Intensity</span>
+                                        <div class="flex-1 h-1.5 rounded-full overflow-hidden" style="background: var(--border-default);">
+                                            <div class="h-full rounded-full transition-all"
+                                                 :class="getMoodGradientClass(entry.mood_type)"
+                                                 :style="'width: ' + (entry.intensity || 5) * 10 + '%'"></div>
+                                        </div>
+                                        <span class="text-xs font-medium" style="color: var(--text-secondary);" x-text="entry.intensity || 5"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- PRIVACY NOTICE + WEEKLY INSIGHTS -->
+                <div class="space-y-6">
+                    <!-- Zero-Knowledge Banner -->
+                    <div class="card-glass p-6 animate-fade-in" style="animation-delay: 0.6s;">
+                        <div class="flex items-start gap-4">
+                            <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-sm" style="background: var(--bg-surface);">
+                                🔐
+                            </div>
+                            <div>
+                                <h3 class="font-bold" style="color: var(--text-primary);">Zero-Knowledge Privacy</h3>
+                                <p class="text-sm mt-2 leading-relaxed" style="color: var(--text-secondary);">
+                                    Your journal entries are <strong style="color: var(--color-primary-600);">End-to-End Encrypted</strong> on your device.
+                                    This dashboard shows your patterns and stats, but your private thoughts remain yours alone.
+                                </p>
+                                <div class="flex items-center gap-4 mt-4">
+                                    <div class="flex items-center gap-2 text-xs" style="color: var(--text-muted);">
+                                        <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                                        Device Encrypted
+                                    </div>
+                                    <div class="flex items-center gap-2 text-xs" style="color: var(--text-muted);">
+                                        <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                                        Zero Server Access
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Weekly Insight Card -->
+                    <div class="card-glass p-6 animate-fade-in" style="animation-delay: 0.65s;">
+                        <div class="flex items-center gap-3 mb-4">
+                            <span class="text-2xl" :class="hasChartData ? '' : 'animate-pulse-soft'">💡</span>
+                            <h3 class="font-bold" style="color: var(--text-primary);">Weekly Insight</h3>
+                        </div>
+
+                        <p x-show="hasChartData" class="leading-relaxed" style="color: var(--text-secondary);" x-text="weeklyInsight"></p>
+
+                        <div x-show="!hasChartData && dataLoaded" x-cloak>
+                            <p class="leading-relaxed mb-4" style="color: var(--text-secondary);">
+                                Your personalized insights will appear here once you start tracking your moods.
+                            </p>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="text-xs px-3 py-1.5 rounded-full" style="background: var(--color-primary-50); color: var(--color-primary-600);">Mood patterns</span>
+                                <span class="text-xs px-3 py-1.5 rounded-full" style="background: rgba(168, 85, 247, 0.1); color: rgb(168, 85, 247);">Streak insights</span>
+                                <span class="text-xs px-3 py-1.5 rounded-full" style="background: rgba(20, 184, 166, 0.1); color: rgb(13, 148, 136);">Growth tips</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 pt-4 flex items-center justify-between" style="border-top: 1px solid var(--border-default);">
+                            <span class="text-xs" style="color: var(--text-muted);" x-text="hasChartData ? 'AI-generated insight based on patterns' : 'Powered by AI analysis'"></span>
+                            <button x-show="hasChartData" class="text-sm font-medium hover:underline" style="color: var(--color-primary-500);">Learn More</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- APP LOGIC -->
+    <script>
+        // CONFIGURATION
+        const SUPABASE_URL = 'https://dvdiokmsdhgfcgagvaxd.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_NBGt8ntEBwHn6tyuJgzfMg_Bmvj6z2f';
+
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        function dashboard() {
+            return {
+                session: null,
+                userEmail: '',
+                loginEmail: '',
+                emailSent: false,
+                loading: false,
+                dataLoaded: false,
+                hasChartData: false,
+                emotionalFlowChart: null,
+                spectrumChart: null,
+                recentEntries: [],
+                spectrumData: [],
+                weeklyInsight: 'Analyzing your patterns to provide personalized insights...',
+
+                // Mood Modal State (Multi-step like iOS app)
+                showMoodModal: false,
+                moodStep: 1,
+                pleasantness: 3, // 1-5 scale (1=Very Unpleasant, 5=Very Pleasant)
+                selectedFeeling: null,
+                showAllFeelings: false,
+                selectedImpacts: [],
+                savingMood: false,
+
+                // Feelings mapped to pleasantness levels (matching iOS app)
+                feelingsByPleasantness: {
+                    1: ['Angry', 'Frustrated', 'Anxious', 'Stressed', 'Overwhelmed', 'Sad', 'Hurt', 'Lonely', 'Disappointed', 'Afraid'],
+                    2: ['Annoyed', 'Worried', 'Tired', 'Bored', 'Confused', 'Restless', 'Uneasy', 'Drained', 'Melancholy', 'Discouraged'],
+                    3: ['Content', 'Calm', 'Peaceful', 'Indifferent', 'Drained', 'Relaxed', 'Thoughtful', 'Reflective', 'Accepting', 'Balanced'],
+                    4: ['Happy', 'Grateful', 'Hopeful', 'Confident', 'Motivated', 'Optimistic', 'Relieved', 'Proud', 'Inspired', 'Curious'],
+                    5: ['Joyful', 'Excited', 'Amazed', 'Empowered', 'Ecstatic', 'Elated', 'Thrilled', 'Blissful', 'Euphoric', 'Passionate']
+                },
+
+                // Impact factors (matching iOS app)
+                impactFactors: ['Health', 'Fitness', 'Self-Care', 'Hobbies', 'Identity', 'Spirituality', 'Community', 'Family', 'Friends', 'Partner', 'Work', 'Money'],
+
+                get pleasantnessLabel() {
+                    const labels = {
+                        1: 'Very Unpleasant',
+                        2: 'Unpleasant',
+                        3: 'Neutral',
+                        4: 'Pleasant',
+                        5: 'Very Pleasant'
+                    };
+                    return labels[this.pleasantness] || 'Neutral';
+                },
+
+                get currentFeelings() {
+                    return this.feelingsByPleasantness[this.pleasantness] || this.feelingsByPleasantness[3];
+                },
+
+                toggleImpact(impact) {
+                    const index = this.selectedImpacts.indexOf(impact);
+                    if (index > -1) {
+                        this.selectedImpacts.splice(index, 1);
+                    } else {
+                        this.selectedImpacts.push(impact);
+                    }
+                },
+
+                // Theme System
+                darkMode: localStorage.getItem('stagewell-mode') === 'dark',
+                currentTheme: localStorage.getItem('stagewell-theme') || 'default',
+                themes: [
+                    { id: 'default', name: 'Indigo Dream', emoji: '💜', gradient: ['#6366f1', '#8b5cf6'] },
+                    { id: 'ocean', name: 'Ocean Breeze', emoji: '🌊', gradient: ['#0891b2', '#0369a1'] },
+                    { id: 'sunset', name: 'Sunset Glow', emoji: '🌅', gradient: ['#f97316', '#f43f5e'] },
+                    { id: 'forest', name: 'Forest Calm', emoji: '🌲', gradient: ['#059669', '#14b8a6'] },
+                    { id: 'rose', name: 'Rose Garden', emoji: '🌸', gradient: ['#ec4899', '#a855f7'] },
+                    { id: 'midnight', name: 'Midnight', emoji: '🌙', gradient: ['#4f46e5', '#6366f1'] }
+                ],
+
+                get themeName() {
+                    const theme = this.themes.find(t => t.id === this.currentTheme);
+                    return theme ? theme.name : 'Indigo Dream';
+                },
+
+                get themeEmoji() {
+                    const theme = this.themes.find(t => t.id === this.currentTheme);
+                    return theme ? theme.emoji : '💜';
+                },
+
+                // Personalized greeting
+                get greeting() {
+                    const hour = new Date().getHours();
+                    if (hour < 12) return 'Good morning';
+                    if (hour < 17) return 'Good afternoon';
+                    return 'Good evening';
+                },
+
+                get userFirstName() {
+                    if (!this.userEmail) return 'there';
+                    const name = this.userEmail.split('@')[0];
+                    return name.charAt(0).toUpperCase() + name.slice(1);
+                },
+
+                get currentDateFormatted() {
+                    return new Date().toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        month: 'long',
+                        day: 'numeric'
+                    });
+                },
+
+                // Paths, Daily Goals, Habits
+                activePaths: [],
+                dailyGoals: {
+                    morning_mood: false,
+                    tool_usage: false,
+                    daily_reflection: false
+                },
+                habits: [],
+                habitCompletions: [],
+                habitFlows: [
+                    { name: 'physical', display_name: 'Physical', icon: '🏃', color: '#22c55e' },
+                    { name: 'mental', display_name: 'Mental', icon: '🧠', color: '#6366f1' },
+                    { name: 'social', display_name: 'Social', icon: '👥', color: '#ec4899' },
+                    { name: 'selfCare', display_name: 'Self Care', icon: '❤️', color: '#ef4444' },
+                    { name: 'productivity', display_name: 'Productivity', icon: '📊', color: '#3b82f6' },
+                    { name: 'spiritual', display_name: 'Spiritual', icon: '✨', color: '#06b6d4' }
+                ],
+                selectedFlow: 'all',
+
+                get dailyGoalsCompleted() {
+                    return Object.values(this.dailyGoals).filter(v => v).length;
+                },
+
+                get filteredFlowHabits() {
+                    if (this.selectedFlow === 'all') return this.habits;
+                    return this.habits.filter(h => h.habit_category === this.selectedFlow || h.category === this.selectedFlow);
+                },
+
+                moodColors: {
+                    empowered: '#f97316',
+                    joyful: '#fbbf24',
+                    calm: '#14b8a6',
+                    neutral: '#6b7280',
+                    anxious: '#a855f7',
+                    sad: '#3b82f6',
+                    angry: '#ef4444'
+                },
+
+                moodEmojis: {
+                    empowered: '🚀',
+                    joyful: '😄',
+                    calm: '😌',
+                    neutral: '😐',
+                    anxious: '😰',
+                    sad: '😢',
+                    angry: '😠'
+                },
+
+                stats: {
+                    totalMoods: '0',
+                    streak: 0,
+                    streakProgress: 0,
+                    nextMilestone: 7,
+                    lastCheckin: '—',
+                    lastCheckinDate: '',
+                    dominantMood: null,
+                    dominantMoodEmoji: '✨'
+                },
+
+                // Theme Methods
+                toggleDarkMode() {
+                    this.darkMode = !this.darkMode;
+                    const mode = this.darkMode ? 'dark' : 'light';
+                    document.documentElement.setAttribute('data-mode', mode);
+                    localStorage.setItem('stagewell-mode', mode);
+                },
+
+                setTheme(themeId) {
+                    this.currentTheme = themeId;
+                    document.documentElement.setAttribute('data-theme', themeId);
+                    localStorage.setItem('stagewell-theme', themeId);
+                },
+
+                // Celebration confetti
+                triggerConfetti() {
+                    const container = document.getElementById('confetti-container');
+                    const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#f97316', '#22c55e', '#3b82f6'];
+
+                    for (let i = 0; i < 50; i++) {
+                        const confetti = document.createElement('div');
+                        confetti.className = 'confetti-piece';
+                        confetti.style.left = Math.random() * 100 + 'vw';
+                        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                        confetti.style.width = (Math.random() * 10 + 5) + 'px';
+                        confetti.style.height = confetti.style.width;
+                        confetti.style.animationDelay = Math.random() * 2 + 's';
+                        confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                        container.appendChild(confetti);
+
+                        setTimeout(() => confetti.remove(), 5000);
+                    }
+                },
+
+                async init() {
+                    // Check active session
+                    const { data: { session } } = await supabaseClient.auth.getSession();
+                    this.session = session;
+                    if (session) {
+                        this.userEmail = session.user.email;
+                        await this.fetchAllData();
+                    }
+
+                    // Listen for auth changes
+                    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+                        this.session = session;
+                        if (session) {
+                            this.userEmail = session.user.email;
+                            await this.fetchAllData();
+                        }
+                    });
+                },
+
+                async fetchAllData() {
+                    this.dataLoaded = false;
+                    await Promise.all([
+                        this.fetchStats(),
+                        this.fetchMoodData(),
+                        this.fetchRecentEntries(),
+                        this.fetchPaths(),
+                        this.fetchDailyGoals(),
+                        this.fetchHabits(),
+                        this.fetchHabitCompletions()
+                    ]);
+                    this.generateWeeklyInsight();
+                    this.dataLoaded = true;
+                },
+
+                // App Store ID for Stagewell AI
+                appStoreId: '6755154394',
+
+                // Open the iOS/Mac app with smart fallback
+                openApp(deepLinkPath = '') {
+                    const urlScheme = deepLinkPath ? `stagewellai://${deepLinkPath}` : 'stagewellai://';
+                    const appStoreUrl = `https://apps.apple.com/app/id${this.appStoreId}`;
+
+                    // Detect platform
+                    const userAgent = navigator.userAgent.toLowerCase();
+                    const isIOS = /iphone|ipad|ipod/.test(userAgent);
+                    const isMac = /macintosh|mac os x/.test(userAgent);
+                    const isSafari = /safari/.test(userAgent) && !/chrome/.test(userAgent);
+
+                    if (isIOS || (isMac && isSafari)) {
+                        // Try to open the app via URL scheme
+                        // If app isn't installed, fall back to App Store after a timeout
+                        const start = Date.now();
+
+                        // Create a hidden iframe to attempt URL scheme
+                        const iframe = document.createElement('iframe');
+                        iframe.style.display = 'none';
+                        iframe.src = urlScheme;
+                        document.body.appendChild(iframe);
+
+                        // Also try direct location change for better iOS support
+                        window.location.href = urlScheme;
+
+                        // Fallback to App Store if app doesn't open
+                        setTimeout(() => {
+                            document.body.removeChild(iframe);
+                            // If we're still here after 2.5 seconds, app probably isn't installed
+                            if (Date.now() - start < 3000) {
+                                window.location.href = appStoreUrl;
+                            }
+                        }, 2500);
+                    } else {
+                        // For non-Apple devices, just link to App Store
+                        window.open(appStoreUrl, '_blank');
+                    }
+                },
+
+                async signInWithGoogle() {
+                    this.loading = true;
+                    const { error } = await supabaseClient.auth.signInWithOAuth({
+                        provider: 'google',
+                        options: {
+                            redirectTo: window.location.origin + '/dashboard.html'
+                        }
+                    });
+                    this.loading = false;
+                    if (error) {
+                        alert(error.message);
+                    }
+                },
+
+                async signInWithMagicLink() {
+                    if (!this.loginEmail) return;
+                    this.loading = true;
+
+                    const redirectUrl = window.location.href;
+
+                    const { error } = await supabaseClient.auth.signInWithOtp({
+                        email: this.loginEmail,
+                        options: {
+                            emailRedirectTo: redirectUrl
+                        }
+                    });
+
+                    this.loading = false;
+
+                    if (error) {
+                        alert(error.message);
+                    } else {
+                        this.emailSent = true;
+                    }
+                },
+
+                async signOut() {
+                    await supabaseClient.auth.signOut();
+                    this.session = null;
+                },
+
+                async fetchStats() {
+                    if (!this.session) return;
+
+                    const { count } = await supabaseClient
+                        .from('mood_entries')
+                        .select('*', { count: 'exact', head: true });
+
+                    if (count !== null) this.stats.totalMoods = count;
+
+                    const { data: latest } = await supabaseClient
+                        .from('mood_entries')
+                        .select('created_at, mood_type')
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .single();
+
+                    if (latest) {
+                        const date = new Date(latest.created_at);
+                        this.stats.lastCheckin = this.formatMood(latest.mood_type);
+                        this.stats.lastCheckinDate = this.formatDate(date);
+                    }
+
+                    const { data: profile } = await supabaseClient
+                        .from('user_profiles')
+                        .select('current_streak')
+                        .eq('id', this.session.user.id)
+                        .single();
+
+                    if (profile) {
+                        this.stats.streak = profile.current_streak || 0;
+                        const milestones = [7, 14, 21, 30, 60, 90, 180, 365];
+                        this.stats.nextMilestone = milestones.find(m => m > this.stats.streak) || 365;
+                        const prevMilestone = milestones.filter(m => m <= this.stats.streak).pop() || 0;
+                        const range = this.stats.nextMilestone - prevMilestone;
+                        const current = this.stats.streak - prevMilestone;
+                        this.stats.streakProgress = Math.min(100, Math.round((current / range) * 100));
+                    }
+                },
+
+                async fetchMoodData() {
+                    if (!this.session) return;
+
+                    const fourteenDaysAgo = new Date();
+                    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+                    const { data: entries } = await supabaseClient
+                        .from('mood_entries')
+                        .select('created_at, mood_type, intensity')
+                        .gte('created_at', fourteenDaysAgo.toISOString())
+                        .order('created_at', { ascending: true });
+
+                    if (!entries || entries.length === 0) {
+                        this.hasChartData = false;
+                        return;
+                    }
+
+                    this.hasChartData = true;
+                    this.renderEmotionalFlowChart(entries);
+                    this.renderSpectrumChart(entries);
+                },
+
+                async fetchRecentEntries() {
+                    if (!this.session) return;
+
+                    const { data: entries } = await supabaseClient
+                        .from('mood_entries')
+                        .select('created_at, mood_type, intensity')
+                        .order('created_at', { ascending: false })
+                        .limit(5);
+
+                    this.recentEntries = entries || [];
+                },
+
+                async fetchPaths() {
+                    if (!this.session) return;
+
+                    const { data, error } = await supabaseClient
+                        .from('user_path_progress')
+                        .select('*')
+                        .eq('status', 'active')
+                        .order('last_accessed_at', { ascending: false });
+
+                    if (!error && data) {
+                        this.activePaths = data;
+                    }
+                },
+
+                async fetchDailyGoals() {
+                    if (!this.session) return;
+
+                    const today = new Date().toISOString().split('T')[0];
+
+                    const { data, error } = await supabaseClient
+                        .from('daily_goals_progress')
+                        .select('*')
+                        .eq('date', today)
+                        .single();
+
+                    if (!error && data && data.completed_goals) {
+                        this.dailyGoals = {
+                            morning_mood: data.completed_goals.morning_mood || false,
+                            tool_usage: data.completed_goals.tool_usage || false,
+                            daily_reflection: data.completed_goals.daily_reflection || false
+                        };
+                    }
+                },
+
+                async fetchHabits() {
+                    if (!this.session) return;
+
+                    const { data, error } = await supabaseClient
+                        .from('habits')
+                        .select('*')
+                        .eq('is_active', true)
+                        .order('created_at', { ascending: false });
+
+                    if (!error && data) {
+                        this.habits = data;
+                    }
+                },
+
+                async fetchHabitCompletions() {
+                    if (!this.session) return;
+
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+
+                    const { data, error } = await supabaseClient
+                        .from('habit_completions')
+                        .select('*')
+                        .gte('completed_at', today.toISOString())
+                        .order('completed_at', { ascending: false });
+
+                    if (!error && data) {
+                        this.habitCompletions = data;
+                    }
+                },
+
+                async toggleDailyGoal(goalKey) {
+                    if (!this.session) return;
+
+                    const wasCompleted = this.dailyGoals[goalKey];
+                    this.dailyGoals[goalKey] = !this.dailyGoals[goalKey];
+
+                    // Trigger confetti when all 3 complete
+                    if (this.dailyGoalsCompleted === 3 && !wasCompleted) {
+                        this.triggerConfetti();
+                    }
+
+                    const today = new Date().toISOString().split('T')[0];
+
+                    await supabaseClient
+                        .from('daily_goals_progress')
+                        .upsert({
+                            user_id: this.session.user.id,
+                            date: today,
+                            completed_goals: this.dailyGoals,
+                            ring_percentage: this.dailyGoalsCompleted / 3,
+                            completed_count: this.dailyGoalsCompleted
+                        }, {
+                            onConflict: 'user_id,date'
+                        });
+                },
+
+                // Mood Modal Methods
+                openMoodModal() {
+                    // Reset modal state for multi-step flow
+                    this.moodStep = 1;
+                    this.pleasantness = 3;
+                    this.selectedFeeling = null;
+                    this.showAllFeelings = false;
+                    this.selectedImpacts = [];
+                    this.savingMood = false;
+                    this.showMoodModal = true;
+                },
+
+                // Map pleasantness to mood_type for database compatibility
+                getMoodTypeFromPleasantness() {
+                    const mapping = {
+                        1: 'angry',
+                        2: 'anxious',
+                        3: 'neutral',
+                        4: 'calm',
+                        5: 'joyful'
+                    };
+                    // Override based on selected feeling if available
+                    const feeling = (this.selectedFeeling || '').toLowerCase();
+                    if (['angry', 'frustrated'].includes(feeling)) return 'angry';
+                    if (['anxious', 'stressed', 'worried', 'afraid'].includes(feeling)) return 'anxious';
+                    if (['sad', 'hurt', 'lonely', 'disappointed', 'melancholy'].includes(feeling)) return 'sad';
+                    if (['calm', 'peaceful', 'relaxed', 'content'].includes(feeling)) return 'calm';
+                    if (['joyful', 'excited', 'amazed', 'ecstatic', 'elated', 'thrilled'].includes(feeling)) return 'joyful';
+                    if (['happy', 'grateful', 'hopeful', 'proud'].includes(feeling)) return 'joyful';
+                    if (['empowered', 'confident', 'motivated', 'inspired'].includes(feeling)) return 'empowered';
+                    return mapping[this.pleasantness] || 'neutral';
+                },
+
+                async saveMoodEntry() {
+                    if (!this.session) return;
+
+                    this.savingMood = true;
+
+                    try {
+                        // Map pleasantness to intensity (1-10 scale)
+                        const intensity = Math.round((this.pleasantness / 5) * 10);
+                        const moodType = this.getMoodTypeFromPleasantness();
+
+                        // Build notes with feeling and impact factors for context
+                        let notesContent = '';
+                        if (this.selectedFeeling) {
+                            notesContent += `Feeling: ${this.selectedFeeling}`;
+                        }
+                        if (this.selectedImpacts.length > 0) {
+                            notesContent += notesContent ? ` | Impacts: ${this.selectedImpacts.join(', ')}` : `Impacts: ${this.selectedImpacts.join(', ')}`;
+                        }
+
+                        // Generate UUID for the entry
+                        const entryId = crypto.randomUUID();
+
+                        // Save mood entry to database (using only existing columns)
+                        const { data, error } = await supabaseClient
+                            .from('mood_entries')
+                            .insert({
+                                id: entryId,
+                                user_id: this.session.user.id,
+                                mood_type: moodType,
+                                intensity: intensity,
+                                notes: notesContent || null,
+                                source: 'web',
+                                timestamp: new Date().toISOString()
+                            })
+                            .select()
+                            .single();
+
+                        if (error) {
+                            console.error('Error saving mood:', error);
+                            alert('Failed to save mood: ' + error.message);
+                            this.savingMood = false;
+                            return;
+                        }
+
+                        // Mark daily goal as complete
+                        if (!this.dailyGoals.morning_mood) {
+                            await this.toggleDailyGoal('morning_mood');
+                        }
+
+                        // Add to recent entries
+                        this.recentEntries.unshift(data);
+                        if (this.recentEntries.length > 5) {
+                            this.recentEntries.pop();
+                        }
+
+                        // Update stats
+                        this.stats.totalMoods = parseInt(this.stats.totalMoods) + 1;
+                        this.stats.lastCheckin = this.formatMood(moodType);
+                        this.stats.lastCheckinDate = 'Just now';
+
+                        // Close modal
+                        this.showMoodModal = false;
+                        this.savingMood = false;
+
+                        // Refresh chart data
+                        await this.fetchMoodData();
+
+                        // Celebration
+                        this.triggerConfetti();
+
+                    } catch (err) {
+                        console.error('Error:', err);
+                        this.savingMood = false;
+                        alert('Something went wrong. Please try again.');
+                    }
+                },
+
+                isHabitCompletedToday(habitId) {
+                    const today = new Date().toISOString().split('T')[0];
+                    return this.habitCompletions.some(c =>
+                        c.habit_id === habitId &&
+                        c.completed_at?.startsWith(today) &&
+                        !c.is_skipped
+                    );
+                },
+
+                async toggleHabitFromDashboard(habit) {
+                    const isCompleted = this.isHabitCompletedToday(habit.id);
+
+                    if (isCompleted) {
+                        const today = new Date().toISOString().split('T')[0];
+                        const completion = this.habitCompletions.find(c =>
+                            c.habit_id === habit.id &&
+                            c.completed_at?.startsWith(today)
+                        );
+
+                        if (completion) {
+                            await supabaseClient
+                                .from('habit_completions')
+                                .delete()
+                                .eq('id', completion.id);
+
+                            this.habitCompletions = this.habitCompletions.filter(c => c.id !== completion.id);
+                        }
+                    } else {
+                        const { data, error } = await supabaseClient
+                            .from('habit_completions')
+                            .insert({
+                                habit_id: habit.id,
+                                completed_at: new Date().toISOString(),
+                                source: 'web',
+                                quantity: 1,
+                                is_skipped: false
+                            })
+                            .select()
+                            .single();
+
+                        if (!error && data) {
+                            this.habitCompletions.push(data);
+
+                            if (habit.micro_action_id && !this.dailyGoals.tool_usage) {
+                                await this.toggleDailyGoal('tool_usage');
+                            }
+                        }
+                    }
+                },
+
+                getPathCategoryEmoji(category) {
+                    const emojis = {
+                        sleep: '😴',
+                        stress: '🧘',
+                        growth: '🌱',
+                        connection: '💕',
+                        creativity: '🎨',
+                        mindfulness: '🧠',
+                        default: '🛤️'
+                    };
+                    return emojis[category] || emojis.default;
+                },
+
+                getFlowColor(category) {
+                    const flow = this.habitFlows.find(f => f.name === category);
+                    return flow?.color || '#6b7280';
+                },
+
+                getFlowName(category) {
+                    const flow = this.habitFlows.find(f => f.name === category);
+                    return flow?.display_name || category || 'General';
+                },
+
+                renderEmotionalFlowChart(entries) {
+                    const ctx = document.getElementById('emotionalFlowChart');
+                    if (!ctx) return;
+
+                    const dateMap = {};
+                    entries.forEach(entry => {
+                        const date = new Date(entry.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        if (!dateMap[date]) {
+                            dateMap[date] = { intensities: [], colors: [] };
+                        }
+                        dateMap[date].intensities.push(entry.intensity || 5);
+                        dateMap[date].colors.push(this.moodColors[entry.mood_type] || '#6b7280');
+                    });
+
+                    const labels = Object.keys(dateMap);
+                    const data = labels.map(date => {
+                        const intensities = dateMap[date].intensities;
+                        return intensities.reduce((a, b) => a + b, 0) / intensities.length;
+                    });
+                    const pointColors = labels.map(date => dateMap[date].colors[0]);
+
+                    if (this.emotionalFlowChart) {
+                        this.emotionalFlowChart.destroy();
+                    }
+
+                    // Get theme colors
+                    const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--color-primary-500').trim() || '#8b5cf6';
+
+                    this.emotionalFlowChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Mood Intensity',
+                                data: data,
+                                fill: true,
+                                backgroundColor: (context) => {
+                                    const chart = context.chart;
+                                    const {ctx, chartArea} = chart;
+                                    if (!chartArea) return null;
+                                    const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                                    gradient.addColorStop(0, 'rgba(99, 102, 241, 0.3)');
+                                    gradient.addColorStop(1, 'rgba(99, 102, 241, 0.02)');
+                                    return gradient;
+                                },
+                                borderColor: primaryColor,
+                                borderWidth: 3,
+                                tension: 0.4,
+                                pointBackgroundColor: pointColors,
+                                pointBorderColor: '#fff',
+                                pointBorderWidth: 2,
+                                pointRadius: 6,
+                                pointHoverRadius: 8
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                    titleColor: '#1f2937',
+                                    bodyColor: '#6b7280',
+                                    borderColor: '#e5e7eb',
+                                    borderWidth: 1,
+                                    cornerRadius: 12,
+                                    padding: 12,
+                                    displayColors: false
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    min: 0,
+                                    max: 10,
+                                    grid: {
+                                        color: 'rgba(0, 0, 0, 0.05)',
+                                        drawBorder: false
+                                    },
+                                    ticks: {
+                                        stepSize: 2,
+                                        color: '#9ca3af',
+                                        font: { size: 11 }
+                                    }
+                                },
+                                x: {
+                                    grid: { display: false },
+                                    ticks: {
+                                        color: '#9ca3af',
+                                        font: { size: 11 },
+                                        maxRotation: 0
+                                    }
+                                }
+                            },
+                            interaction: {
+                                intersect: false,
+                                mode: 'index'
+                            }
+                        }
+                    });
+                },
+
+                renderSpectrumChart(entries) {
+                    const ctx = document.getElementById('spectrumChart');
+                    if (!ctx) return;
+
+                    const moodCounts = {};
+                    entries.forEach(entry => {
+                        const mood = entry.mood_type;
+                        moodCounts[mood] = (moodCounts[mood] || 0) + 1;
+                    });
+
+                    const sortedMoods = Object.entries(moodCounts)
+                        .sort((a, b) => b[1] - a[1]);
+
+                    this.spectrumData = sortedMoods.map(([mood, count]) => ({ mood, count }));
+
+                    if (sortedMoods.length > 0) {
+                        this.stats.dominantMood = sortedMoods[0][0];
+                        this.stats.dominantMoodEmoji = this.moodEmojis[sortedMoods[0][0]] || '😊';
+                    }
+
+                    const labels = sortedMoods.map(([mood]) => mood);
+                    const data = sortedMoods.map(([, count]) => count);
+                    const colors = sortedMoods.map(([mood]) => this.moodColors[mood] || '#6b7280');
+
+                    if (this.spectrumChart) {
+                        this.spectrumChart.destroy();
+                    }
+
+                    this.spectrumChart = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: data,
+                                backgroundColor: colors,
+                                borderColor: '#ffffff',
+                                borderWidth: 3,
+                                hoverBorderWidth: 0,
+                                hoverOffset: 8
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutout: '65%',
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                    titleColor: '#1f2937',
+                                    bodyColor: '#6b7280',
+                                    borderColor: '#e5e7eb',
+                                    borderWidth: 1,
+                                    cornerRadius: 12,
+                                    padding: 12,
+                                    callbacks: {
+                                        label: (context) => {
+                                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                            const percentage = Math.round((context.raw / total) * 100);
+                                            return `${context.label}: ${context.raw} (${percentage}%)`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                },
+
+                generateWeeklyInsight() {
+                    if (this.spectrumData.length === 0) {
+                        this.weeklyInsight = 'Start tracking your moods to receive personalized insights about your emotional patterns.';
+                        return;
+                    }
+
+                    const dominant = this.stats.dominantMood;
+                    const streak = this.stats.streak;
+                    const total = this.stats.totalMoods;
+
+                    const insights = {
+                        calm: `You've been maintaining a sense of calm lately. ${streak > 3 ? 'Your ' + streak + '-day streak shows great consistency!' : 'Keep building on this peaceful foundation.'}`,
+                        joyful: `Joy has been your dominant emotion recently. ${total > 10 ? 'With ' + total + ' check-ins, you\'re developing strong self-awareness!' : 'Continue nurturing what brings you happiness.'}`,
+                        empowered: `You're feeling empowered and motivated! ${streak > 5 ? 'Your impressive ' + streak + '-day streak reflects your commitment to growth.' : 'Channel this energy into your goals.'}`,
+                        anxious: `We notice some anxiety in your recent entries. Remember: awareness is the first step. Consider exploring our breathing exercises.`,
+                        sad: `It's okay to feel sad sometimes. Your willingness to track these emotions shows strength. Consider reaching out to someone you trust.`,
+                        neutral: `You've been in a balanced, neutral state. This can be a great foundation for exploring what brings you more joy and energy.`,
+                        angry: `You've experienced some anger recently. Acknowledging these feelings is healthy. Our grounding exercises might help process these emotions.`
+                    };
+
+                    this.weeklyInsight = insights[dominant] || 'Keep tracking your moods to unlock deeper insights about your emotional patterns.';
+                },
+
+                formatMood(type) {
+                    const moods = {
+                        'empowered': '🚀 Empowered',
+                        'joyful': '😄 Joyful',
+                        'calm': '😌 Calm',
+                        'neutral': '😐 Neutral',
+                        'anxious': '😰 Anxious',
+                        'sad': '😢 Sad',
+                        'angry': '😠 Angry'
+                    };
+                    return moods[type] || type;
+                },
+
+                formatDate(date) {
+                    const now = new Date();
+                    const diff = now - date;
+                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+                    if (days === 0) return 'Today';
+                    if (days === 1) return 'Yesterday';
+                    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                },
+
+                formatTimeAgo(dateString) {
+                    const date = new Date(dateString);
+                    const now = new Date();
+                    const diff = now - date;
+
+                    const minutes = Math.floor(diff / (1000 * 60));
+                    const hours = Math.floor(diff / (1000 * 60 * 60));
+                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+                    if (minutes < 60) return `${minutes}m ago`;
+                    if (hours < 24) return `${hours}h ago`;
+                    if (days === 1) return 'Yesterday';
+                    if (days < 7) return `${days}d ago`;
+                    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                },
+
+                getMoodEmoji(type) {
+                    return this.moodEmojis[type] || '😐';
+                },
+
+                getMoodBgClass(type) {
+                    const classes = {
+                        empowered: 'bg-orange-100',
+                        joyful: 'bg-amber-100',
+                        calm: 'bg-teal-100',
+                        neutral: 'bg-gray-100',
+                        anxious: 'bg-purple-100',
+                        sad: 'bg-blue-100',
+                        angry: 'bg-red-100'
+                    };
+                    return classes[type] || 'bg-gray-100';
+                },
+
+                getMoodGradientClass(type) {
+                    const classes = {
+                        empowered: 'bg-gradient-to-r from-orange-400 to-orange-500',
+                        joyful: 'bg-gradient-to-r from-amber-400 to-amber-500',
+                        calm: 'bg-gradient-to-r from-teal-400 to-teal-500',
+                        neutral: 'bg-gradient-to-r from-gray-400 to-gray-500',
+                        anxious: 'bg-gradient-to-r from-purple-400 to-purple-500',
+                        sad: 'bg-gradient-to-r from-blue-400 to-blue-500',
+                        angry: 'bg-gradient-to-r from-red-400 to-red-500'
+                    };
+                    return classes[type] || 'bg-gradient-to-r from-gray-400 to-gray-500';
+                }
+            }
+        }
+    </script>
+</body>
+</html>

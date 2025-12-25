@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stagewell AI - Journal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="theme.css">
+    <script src="shared.js"></script>
+
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('stagewell-theme') || 'default';
+            const savedMode = localStorage.getItem('stagewell-mode') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.documentElement.setAttribute('data-mode', savedMode);
+        })();
+    </script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe',
+                            300: '#c4b5fd', 400: '#a78bfa', 500: '#8b5cf6',
+                            600: '#7c3aed', 700: '#6d28d9',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-wavy font-sans antialiased min-h-screen transition-colors duration-300"
+      x-data="journalPage()">
+
+    <!-- AUTH SCREEN -->
+    <div x-show="!session" class="min-h-screen flex items-center justify-center p-4">
+        <div class="max-w-md w-full card-glass overflow-hidden animate-fade-in">
+            <div class="bg-gradient-primary p-8 text-center relative overflow-hidden">
+                <div class="absolute inset-0 overflow-hidden">
+                    <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                    <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                </div>
+                <div class="relative">
+                    <h1 class="text-3xl font-bold text-white mb-2">Stagewell AI</h1>
+                    <p class="text-white/80">Journal</p>
+                </div>
+            </div>
+            <div class="p-8" style="background: var(--bg-surface);">
+                <p class="text-center mb-6" style="color: var(--text-secondary);">Sign in to access your journal.</p>
+                <div x-show="!emailSent">
+                    <button @click="signInWithGoogle"
+                            :disabled="loading"
+                            class="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl font-medium transition-all hover:shadow-md disabled:opacity-50"
+                            style="background: white; border: 1px solid #e5e7eb; color: #374151;">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        </svg>
+                        <span>Continue with Google</span>
+                    </button>
+                    <div class="flex items-center gap-4 my-6">
+                        <div class="flex-1 h-px" style="background: var(--border-default);"></div>
+                        <span class="text-xs font-medium" style="color: var(--text-muted);">or sign in with email</span>
+                        <div class="flex-1 h-px" style="background: var(--border-default);"></div>
+                    </div>
+                    <form @submit.prevent="signInWithMagicLink" class="space-y-4">
+                        <input type="email" x-model="loginEmail" required
+                               class="input-themed w-full"
+                               placeholder="Enter your email">
+                        <button type="submit" :disabled="loading"
+                                class="btn-primary w-full flex items-center justify-center gap-2 py-3 disabled:opacity-50">
+                            <span x-show="!loading">✨ Send Magic Link</span>
+                            <span x-show="loading" class="flex items-center gap-2">
+                                <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                                </svg>
+                                Sending...
+                            </span>
+                        </button>
+                    </form>
+                </div>
+                <div x-show="emailSent" x-cloak class="text-center">
+                    <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl" style="background: var(--bg-muted);">✉️</div>
+                    <h3 class="text-lg font-bold mb-2" style="color: var(--text-primary);">Check your email</h3>
+                    <p class="text-sm mb-6" style="color: var(--text-secondary);">We sent a magic link to <strong x-text="loginEmail"></strong>.</p>
+                    <button @click="emailSent = false" class="font-medium hover:underline text-sm" style="color: var(--color-primary-500);">Try a different email</button>
+                </div>
+            </div>
+            <p class="text-xs text-center py-4" style="color: var(--text-muted); background: var(--bg-surface);">
+                Securely connected via Supabase Auth
+            </p>
+        </div>
+    </div>
+
+    <!-- MAIN LAYOUT -->
+    <div x-show="session" x-cloak class="min-h-screen flex flex-col lg:flex-row">
+
+        <!-- SIDEBAR -->
+        <aside class="w-full lg:w-72 sidebar-glass flex-shrink-0 lg:min-h-screen">
+            <div class="p-6">
+                <a href="dashboard.html" class="block">
+                    <h2 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-primary">Stagewell</h2>
+                    <p class="text-xs mt-1 uppercase tracking-wider" style="color: var(--text-muted);">Insight Center</p>
+                </a>
+            </div>
+            <nav class="px-4 pb-4 lg:pb-0 flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible scrollbar-hide">
+                <a href="dashboard.html" class="sidebar-item flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">📊</span>
+                    <span class="hidden lg:inline">Overview</span>
+                </a>
+                <a href="habits.html" class="sidebar-item flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">✅</span>
+                    <span class="hidden lg:inline">Habits & Goals</span>
+                    <span class="hidden lg:inline ml-auto badge-primary text-xs">Sync</span>
+                </a>
+                <a href="journal.html" class="sidebar-item active flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">📓</span>
+                    <span class="hidden lg:inline">Journal</span>
+                    <span class="hidden lg:inline ml-auto text-xs px-2 py-0.5 rounded-full" style="background: var(--bg-muted); color: var(--text-muted);">E2E</span>
+                </a>
+                <a href="growth.html" class="sidebar-item flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">🌱</span>
+                    <span class="hidden lg:inline">Growth Path</span>
+                </a>
+                <a href="settings.html" class="sidebar-item flex-shrink-0 flex items-center gap-3">
+                    <span class="text-xl">⚙️</span>
+                    <span class="hidden lg:inline">Settings</span>
+                </a>
+            </nav>
+            <div class="hidden lg:block p-4 mt-auto" style="border-top: 1px solid var(--border-default);">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold shadow-lg">
+                        <span x-text="userEmail ? userEmail[0].toUpperCase() : 'U'"></span>
+                    </div>
+                    <div class="overflow-hidden flex-1">
+                        <p class="text-sm font-medium truncate" style="color: var(--text-primary);" x-text="userEmail"></p>
+                        <button @click="signOut" class="text-xs text-red-500 hover:underline">Sign Out</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+
+            <!-- HEADER -->
+            <div class="flex flex-col md:flex-row md:items-start justify-between mb-8 gap-4">
+                <div class="animate-fade-in">
+                    <p class="text-sm font-medium mb-1" style="color: var(--text-muted);" x-text="currentDateFormatted"></p>
+                    <h1 class="text-2xl md:text-3xl font-bold" style="color: var(--text-primary);">Your Journal</h1>
+                    <p class="mt-1" style="color: var(--text-secondary);">Private, encrypted reflections</p>
+                </div>
+                <div class="flex items-center gap-3 flex-wrap">
+                    <!-- E2E Badge -->
+                    <div class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium" style="background: rgba(34, 197, 94, 0.1); color: rgb(22, 163, 74);">
+                        <span class="text-base">🔐</span>
+                        End-to-End Encrypted
+                    </div>
+                    <!-- Dark Mode Toggle -->
+                    <button @click="toggleDarkMode" class="btn-ghost flex items-center gap-2" :title="darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
+                        <span x-show="!darkMode" class="text-xl">🌙</span>
+                        <span x-show="darkMode" class="text-xl">☀️</span>
+                    </button>
+                    <!-- Theme Picker -->
+                    <div class="relative" x-data="{ open: false }">
+                        <button @click="open = !open" class="btn-ghost flex items-center gap-2 px-3 py-2 rounded-lg" style="background: var(--bg-muted);">
+                            <span x-text="themeEmoji" class="text-lg"></span>
+                            <span class="hidden sm:inline text-sm font-medium" style="color: var(--text-secondary);" x-text="themeName"></span>
+                            <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                        <div x-show="open" @click.away="open = false" x-transition class="theme-picker-dropdown animate-fade-in">
+                            <p class="text-xs font-semibold uppercase tracking-wider mb-3" style="color: var(--text-muted);">Color Theme</p>
+                            <div class="space-y-1">
+                                <template x-for="t in themes" :key="t.id">
+                                    <button @click="setTheme(t.id); open = false" class="theme-option w-full" :class="{ 'active': currentTheme === t.id }">
+                                        <div class="theme-swatch" :style="'background: linear-gradient(135deg, ' + t.gradient[0] + ', ' + t.gradient[1] + ')'">
+                                            <span x-text="t.emoji" class="drop-shadow"></span>
+                                        </div>
+                                        <div class="flex-1 text-left">
+                                            <p class="font-medium text-sm" style="color: var(--text-primary);" x-text="t.name"></p>
+                                        </div>
+                                        <svg x-show="currentTheme === t.id" class="w-5 h-5" style="color: var(--color-primary-500);" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                        </svg>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Mobile Sign Out -->
+                    <button @click="signOut" class="lg:hidden btn-ghost" style="color: var(--text-muted);">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ENCRYPTION NOTICE -->
+            <div class="mb-8 bg-gradient-primary rounded-2xl p-6 text-white relative overflow-hidden">
+                <div class="absolute inset-0 opacity-10">
+                    <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
+                            <path d="M 10 0 L 0 0 0 10" fill="none" stroke="currentColor" stroke-width="0.5"/>
+                        </pattern>
+                        <rect width="100%" height="100%" fill="url(#grid)"/>
+                    </svg>
+                </div>
+                <div class="relative flex flex-col md:flex-row md:items-center gap-4">
+                    <div class="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-3xl">
+                        🔒
+                    </div>
+                    <div class="flex-1">
+                        <h2 class="text-xl font-bold mb-1">Zero-Knowledge Privacy</h2>
+                        <p class="text-white/90">
+                            Your journal entries are encrypted on your device before syncing. We can never read your private thoughts — only you hold the key.
+                        </p>
+                    </div>
+                    <div class="flex flex-col gap-2 text-sm">
+                        <div class="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-lg">
+                            <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                            Device Encrypted
+                        </div>
+                        <div class="flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-lg">
+                            <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                            Zero Server Access
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- JOURNAL FILTERS -->
+            <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                <div class="flex-1 relative">
+                    <input type="text" placeholder="Search entries..." x-model="searchQuery"
+                           class="input-themed w-full pl-10">
+                    <svg class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2" style="color: var(--text-muted);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+                <select x-model="filterMood" class="input-themed">
+                    <option value="">All Moods</option>
+                    <option value="calm">😌 Calm</option>
+                    <option value="joyful">😄 Joyful</option>
+                    <option value="empowered">🚀 Empowered</option>
+                    <option value="neutral">😐 Neutral</option>
+                    <option value="anxious">😰 Anxious</option>
+                    <option value="sad">😢 Sad</option>
+                    <option value="angry">😠 Angry</option>
+                </select>
+            </div>
+
+            <!-- JOURNAL ENTRIES -->
+            <div class="space-y-4">
+
+                <!-- Empty State -->
+                <div x-show="entries.length === 0 && dataLoaded" x-cloak>
+                    <div class="card-glass overflow-hidden">
+                        <!-- Header -->
+                        <div class="p-6" style="border-bottom: 1px solid var(--border-default); background: linear-gradient(to right, var(--bg-muted), transparent);">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: var(--color-primary-100);">
+                                    <span class="text-2xl">📝</span>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold" style="color: var(--text-primary);">Start Your Journal</h3>
+                                    <p class="text-sm" style="color: var(--text-secondary);">Your thoughts, safely encrypted</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Empty State Content -->
+                        <div class="p-8">
+                            <div class="max-w-md mx-auto text-center">
+                                <!-- Illustration -->
+                                <div class="relative w-48 h-48 mx-auto mb-6">
+                                    <div class="absolute inset-0 rounded-3xl rotate-6" style="background: var(--color-primary-100);"></div>
+                                    <div class="absolute inset-0 rounded-3xl shadow-lg flex items-center justify-center" style="background: var(--bg-surface);">
+                                        <div class="text-center">
+                                            <span class="text-6xl block mb-2">📓</span>
+                                            <div class="flex items-center justify-center gap-1">
+                                                <span class="text-lg">🔒</span>
+                                                <span class="text-xs font-medium" style="color: var(--text-muted);">E2E Encrypted</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <h3 class="text-xl font-bold mb-2" style="color: var(--text-primary);">Your Private Space Awaits</h3>
+                                <p class="mb-6" style="color: var(--text-secondary);">
+                                    Journal entries are created in the iOS app and encrypted before syncing.
+                                    Your thoughts are protected with end-to-end encryption.
+                                </p>
+
+                                <!-- Features -->
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
+                                    <div class="p-4 rounded-xl" style="background: var(--bg-muted);">
+                                        <span class="text-2xl block mb-2">✍️</span>
+                                        <p class="font-medium text-sm" style="color: var(--text-primary);">Guided Prompts</p>
+                                        <p class="text-xs mt-1" style="color: var(--text-muted);">Thoughtful questions to inspire reflection</p>
+                                    </div>
+                                    <div class="p-4 rounded-xl" style="background: var(--bg-muted);">
+                                        <span class="text-2xl block mb-2">🎯</span>
+                                        <p class="font-medium text-sm" style="color: var(--text-primary);">Mood Linked</p>
+                                        <p class="text-xs mt-1" style="color: var(--text-muted);">Connect entries to your emotional state</p>
+                                    </div>
+                                    <div class="p-4 rounded-xl" style="background: var(--bg-muted);">
+                                        <span class="text-2xl block mb-2">🔐</span>
+                                        <p class="font-medium text-sm" style="color: var(--text-primary);">Truly Private</p>
+                                        <p class="text-xs mt-1" style="color: var(--text-muted);">Zero-knowledge encryption keeps it safe</p>
+                                    </div>
+                                </div>
+
+                                <div class="mt-8 p-4 rounded-xl text-center" style="background: var(--color-primary-50);">
+                                    <p class="text-sm mb-3" style="color: var(--color-primary-700);">Start your journaling practice in the app</p>
+                                    <button @click="openApp('journal')"
+                                            class="btn-primary px-4 py-2 text-sm">
+                                        📱 Open App to Write Entry
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Placeholder Entries (shown when empty for preview) -->
+                <template x-if="entries.length === 0 && dataLoaded">
+                    <div class="space-y-4 mt-6">
+                        <p class="text-sm text-center" style="color: var(--text-muted);">Preview of what your entries will look like:</p>
+
+                        <!-- Sample Entry 1 -->
+                        <div class="card-glass p-5 opacity-60" style="border: 2px dashed var(--border-default);">
+                            <div class="flex items-start gap-4">
+                                <div class="w-12 h-12 rounded-xl bg-teal-100 flex items-center justify-center text-2xl">
+                                    😌
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="font-semibold" style="color: var(--text-muted);">Calm</span>
+                                        <span class="text-xs" style="color: var(--text-muted);">Today, 9:30 AM</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 p-3 rounded-lg" style="background: var(--bg-muted);">
+                                        <span class="text-lg">🔒</span>
+                                        <div>
+                                            <p class="text-sm italic" style="color: var(--text-muted);">Encrypted journal entry</p>
+                                            <p class="text-xs" style="color: var(--text-muted);">Decrypt in iOS app to view</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sample Entry 2 -->
+                        <div class="card-glass p-5 opacity-40" style="border: 2px dashed var(--border-default);">
+                            <div class="flex items-start gap-4">
+                                <div class="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-2xl">
+                                    😄
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="font-semibold" style="color: var(--text-muted);">Joyful</span>
+                                        <span class="text-xs" style="color: var(--text-muted);">Yesterday</span>
+                                    </div>
+                                    <div class="h-12 rounded-lg" style="background: var(--bg-muted);"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Actual Entries (when data exists) -->
+                <template x-for="(entry, index) in filteredEntries" :key="index">
+                    <div class="card-glass p-5 hover:shadow-md transition-shadow">
+                        <div class="flex items-start gap-4">
+                            <!-- Mood Icon -->
+                            <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                                 :class="getMoodBgClass(entry.mood_type)">
+                                <span x-text="getMoodEmoji(entry.mood_type)"></span>
+                            </div>
+
+                            <!-- Content -->
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="font-semibold capitalize" style="color: var(--text-primary);" x-text="entry.mood_type"></span>
+                                    <span class="text-xs" style="color: var(--text-muted);" x-text="formatDate(entry.created_at)"></span>
+                                </div>
+
+                                <!-- Encrypted Content Notice -->
+                                <div class="flex items-center gap-3 p-4 rounded-xl" style="background: var(--bg-muted);">
+                                    <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: var(--color-primary-100);">
+                                        <span class="text-xl">🔒</span>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-medium" style="color: var(--text-primary);">Encrypted Personal Note</p>
+                                        <button @click="openApp('journal')" class="text-xs hover:underline" style="color: var(--color-primary-500);">
+                                            Open app to decrypt and view →
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Intensity -->
+                                <div class="mt-3 flex items-center gap-3">
+                                    <span class="text-xs" style="color: var(--text-muted);">Intensity</span>
+                                    <div class="flex-1 h-1.5 rounded-full overflow-hidden max-w-32" style="background: var(--bg-muted);">
+                                        <div class="h-full rounded-full"
+                                             :class="getMoodGradientClass(entry.mood_type)"
+                                             :style="'width: ' + (entry.intensity || 5) * 10 + '%'"></div>
+                                    </div>
+                                    <span class="text-xs font-medium" style="color: var(--text-secondary);" x-text="(entry.intensity || 5) + '/10'"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Load More -->
+            <div x-show="entries.length > 0 && hasMore" class="mt-6 text-center">
+                <button @click="loadMore" class="px-6 py-3 rounded-xl font-medium transition-colors" style="background: var(--bg-surface); border: 1px solid var(--border-default); color: var(--text-primary);">
+                    Load More Entries
+                </button>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        function journalPage() {
+            return {
+                // Merge shared data
+                ...sharedPageData('journal'),
+
+                // Page-specific state
+                dataLoaded: false,
+                entries: [],
+                searchQuery: '',
+                filterMood: '',
+                hasMore: false,
+                page: 0,
+                pageSize: 10,
+
+                moodEmojis: {
+                    empowered: '🚀', joyful: '😄', calm: '😌', neutral: '😐',
+                    anxious: '😰', sad: '😢', angry: '😠'
+                },
+
+                // App Store ID for Stagewell AI
+                appStoreId: '6755154394',
+
+                // Open the iOS/Mac app with smart fallback
+                openApp(deepLinkPath = '') {
+                    const urlScheme = deepLinkPath ? `stagewellai://${deepLinkPath}` : 'stagewellai://';
+                    const appStoreUrl = `https://apps.apple.com/app/id${this.appStoreId}`;
+                    const userAgent = navigator.userAgent.toLowerCase();
+                    const isApple = /iphone|ipad|ipod|macintosh|mac os x/.test(userAgent);
+
+                    if (isApple) {
+                        window.location.href = urlScheme;
+                        setTimeout(() => { window.location.href = appStoreUrl; }, 2500);
+                    } else {
+                        window.open(appStoreUrl, '_blank');
+                    }
+                },
+
+                async init() {
+                    await this.initShared();
+                    if (this.session) {
+                        await this.fetchEntries();
+                    }
+
+                    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+                        this.session = session;
+                        if (session) {
+                            this.userEmail = session.user.email;
+                            await this.fetchEntries();
+                        }
+                    });
+                },
+
+                async fetchEntries() {
+                    const { data, error } = await supabaseClient
+                        .from('mood_entries')
+                        .select('*')
+                        .order('created_at', { ascending: false })
+                        .range(0, this.pageSize - 1);
+
+                    if (!error && data) {
+                        this.entries = data;
+                        this.hasMore = data.length === this.pageSize;
+                    }
+                    this.dataLoaded = true;
+                },
+
+                async loadMore() {
+                    this.page++;
+                    const start = this.page * this.pageSize;
+                    const { data } = await supabaseClient
+                        .from('mood_entries')
+                        .select('*')
+                        .order('created_at', { ascending: false })
+                        .range(start, start + this.pageSize - 1);
+
+                    if (data) {
+                        this.entries = [...this.entries, ...data];
+                        this.hasMore = data.length === this.pageSize;
+                    }
+                },
+
+                get filteredEntries() {
+                    return this.entries.filter(entry => {
+                        const matchesMood = !this.filterMood || entry.mood_type === this.filterMood;
+                        const matchesSearch = !this.searchQuery || entry.mood_type.includes(this.searchQuery.toLowerCase());
+                        return matchesMood && matchesSearch;
+                    });
+                },
+
+                formatDate(dateString) {
+                    const date = new Date(dateString);
+                    const now = new Date();
+                    const diff = now - date;
+                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    if (days === 0) {
+                        return 'Today, ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    } else if (days === 1) {
+                        return 'Yesterday, ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    }
+                    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                },
+
+                getMoodEmoji(type) { return this.moodEmojis[type] || '😐'; },
+
+                getMoodBgClass(type) {
+                    const classes = {
+                        empowered: 'bg-orange-100', joyful: 'bg-amber-100', calm: 'bg-teal-100',
+                        neutral: 'bg-gray-100', anxious: 'bg-purple-100', sad: 'bg-blue-100', angry: 'bg-red-100'
+                    };
+                    return classes[type] || 'bg-gray-100';
+                },
+
+                getMoodGradientClass(type) {
+                    const classes = {
+                        empowered: 'bg-gradient-to-r from-orange-400 to-orange-500',
+                        joyful: 'bg-gradient-to-r from-amber-400 to-amber-500',
+                        calm: 'bg-gradient-to-r from-teal-400 to-teal-500',
+                        neutral: 'bg-gradient-to-r from-gray-400 to-gray-500',
+                        anxious: 'bg-gradient-to-r from-purple-400 to-purple-500',
+                        sad: 'bg-gradient-to-r from-blue-400 to-blue-500',
+                        angry: 'bg-gradient-to-r from-red-400 to-red-500'
+                    };
+                    return classes[type] || 'bg-gradient-to-r from-gray-400 to-gray-500';
+                }
+            }
+        }
+    </script>
+</body>
+</html>

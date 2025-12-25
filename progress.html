@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stagewell AI - Progress</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="theme.css">
+    <script src="shared.js"></script>
+
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('stagewell-theme') || 'default';
+            const savedMode = localStorage.getItem('stagewell-mode') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.documentElement.setAttribute('data-mode', savedMode);
+        })();
+    </script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe',
+                            300: '#c4b5fd', 400: '#a78bfa', 500: '#8b5cf6',
+                            600: '#7c3aed', 700: '#6d28d9',
+                        },
+                        maslow: {
+                            physiological: '#ef4444',
+                            safety: '#f97316',
+                            belonging: '#eab308',
+                            esteem: '#22c55e',
+                            actualization: '#6366f1'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+
+        /* XP Progress Ring */
+        .xp-ring {
+            transform: rotate(-90deg);
+        }
+        .xp-ring-bg {
+            fill: none;
+            stroke: var(--bg-muted);
+            stroke-width: 8;
+        }
+        .xp-ring-progress {
+            fill: none;
+            stroke: url(#xpGradient);
+            stroke-width: 8;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1s ease-out;
+        }
+
+        /* Badge styles */
+        .badge-card {
+            transition: all 0.3s ease;
+        }
+        .badge-card:hover {
+            transform: translateY(-2px);
+        }
+        .badge-card.locked {
+            filter: grayscale(1);
+            opacity: 0.5;
+        }
+
+        /* Streak flame animation */
+        @keyframes flicker {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        .streak-flame {
+            animation: flicker 1.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="bg-wavy font-sans antialiased min-h-screen transition-colors duration-300"
+      x-data="progressPage()">
+
+    <!-- AUTH SCREEN -->
+    <div x-html="generateAuthScreen('Progress')"></div>
+
+    <!-- MAIN LAYOUT -->
+    <div x-show="session" x-cloak class="min-h-screen flex flex-col lg:flex-row">
+
+        <!-- SIDEBAR -->
+        <div id="shared-sidebar"></div>
+
+        <!-- MAIN CONTENT -->
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+
+            <!-- HEADER -->
+            <div id="shared-header"></div>
+
+            <!-- LOADING STATE -->
+            <div x-show="loading" class="flex items-center justify-center py-20">
+                <div class="text-center">
+                    <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-primary animate-pulse"></div>
+                    <p style="color: var(--text-muted);">Loading your progress...</p>
+                </div>
+            </div>
+
+            <!-- PROGRESS CONTENT -->
+            <div x-show="!loading" x-cloak>
+
+                <!-- XP & LEVEL SECTION -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+
+                    <!-- XP Ring Card -->
+                    <div class="lg:col-span-1 card-glass p-6">
+                        <div class="flex flex-col items-center">
+                            <!-- XP Ring SVG -->
+                            <div class="relative w-48 h-48 mb-4">
+                                <svg class="xp-ring w-full h-full" viewBox="0 0 100 100">
+                                    <defs>
+                                        <linearGradient id="xpGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                            <stop offset="0%" style="stop-color: var(--color-primary-500)"/>
+                                            <stop offset="100%" style="stop-color: var(--color-accent-500)"/>
+                                        </linearGradient>
+                                    </defs>
+                                    <circle class="xp-ring-bg" cx="50" cy="50" r="42"/>
+                                    <circle class="xp-ring-progress" cx="50" cy="50" r="42"
+                                            stroke-dasharray="264"
+                                            :stroke-dashoffset="264 - (264 * levelProgress / 100)"/>
+                                </svg>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                    <p class="text-4xl font-bold bg-clip-text text-transparent bg-gradient-primary" x-text="currentLevel"></p>
+                                    <p class="text-sm font-medium" style="color: var(--text-muted);">Level</p>
+                                </div>
+                            </div>
+
+                            <!-- XP Stats -->
+                            <div class="text-center">
+                                <p class="text-2xl font-bold" style="color: var(--text-primary);">
+                                    <span x-text="totalXP.toLocaleString()"></span> XP
+                                </p>
+                                <p class="text-sm" style="color: var(--text-secondary);">
+                                    <span x-text="xpToNextLevel.toLocaleString()"></span> XP to level <span x-text="currentLevel + 1"></span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stats Cards -->
+                    <div class="lg:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <!-- Current Streak -->
+                        <div class="card-glass p-4 text-center">
+                            <div class="text-3xl mb-2 streak-flame">
+                                <span x-text="currentStreak > 0 ? '🔥' : '❄️'"></span>
+                            </div>
+                            <p class="text-2xl font-bold" style="color: var(--text-primary);" x-text="currentStreak"></p>
+                            <p class="text-xs" style="color: var(--text-muted);">Day Streak</p>
+                        </div>
+
+                        <!-- Longest Streak -->
+                        <div class="card-glass p-4 text-center">
+                            <div class="text-3xl mb-2">🏆</div>
+                            <p class="text-2xl font-bold" style="color: var(--text-primary);" x-text="longestStreak"></p>
+                            <p class="text-xs" style="color: var(--text-muted);">Best Streak</p>
+                        </div>
+
+                        <!-- Total Habits -->
+                        <div class="card-glass p-4 text-center">
+                            <div class="text-3xl mb-2">✅</div>
+                            <p class="text-2xl font-bold" style="color: var(--text-primary);" x-text="totalHabitsCompleted"></p>
+                            <p class="text-xs" style="color: var(--text-muted);">Habits Done</p>
+                        </div>
+
+                        <!-- Badges Earned -->
+                        <div class="card-glass p-4 text-center">
+                            <div class="text-3xl mb-2">🎖️</div>
+                            <p class="text-2xl font-bold" style="color: var(--text-primary);" x-text="badgesEarned"></p>
+                            <p class="text-xs" style="color: var(--text-muted);">Badges</p>
+                        </div>
+
+                        <!-- Journal Entries -->
+                        <div class="card-glass p-4 text-center">
+                            <div class="text-3xl mb-2">📓</div>
+                            <p class="text-2xl font-bold" style="color: var(--text-primary);" x-text="journalEntries"></p>
+                            <p class="text-xs" style="color: var(--text-muted);">Journal Entries</p>
+                        </div>
+
+                        <!-- Mood Logs -->
+                        <div class="card-glass p-4 text-center">
+                            <div class="text-3xl mb-2">😊</div>
+                            <p class="text-2xl font-bold" style="color: var(--text-primary);" x-text="moodLogs"></p>
+                            <p class="text-xs" style="color: var(--text-muted);">Mood Logs</p>
+                        </div>
+
+                        <!-- Goals Completed -->
+                        <div class="card-glass p-4 text-center">
+                            <div class="text-3xl mb-2">🎯</div>
+                            <p class="text-2xl font-bold" style="color: var(--text-primary);" x-text="goalsCompleted"></p>
+                            <p class="text-xs" style="color: var(--text-muted);">Goals Done</p>
+                        </div>
+
+                        <!-- Days Active -->
+                        <div class="card-glass p-4 text-center">
+                            <div class="text-3xl mb-2">📅</div>
+                            <p class="text-2xl font-bold" style="color: var(--text-primary);" x-text="daysActive"></p>
+                            <p class="text-xs" style="color: var(--text-muted);">Days Active</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BADGES SECTION -->
+                <div class="card-glass p-6 mb-8">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 class="text-lg font-bold" style="color: var(--text-primary);">Achievements</h3>
+                            <p class="text-sm" style="color: var(--text-secondary);">
+                                <span x-text="badgesEarned"></span> of <span x-text="allBadges.length"></span> badges earned
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button @click="badgeFilter = 'all'"
+                                    class="px-3 py-1.5 rounded-full text-sm font-medium transition-all"
+                                    :style="badgeFilter === 'all' ? 'background: var(--color-primary-500); color: white;' : 'background: var(--bg-muted); color: var(--text-secondary);'">
+                                All
+                            </button>
+                            <button @click="badgeFilter = 'earned'"
+                                    class="px-3 py-1.5 rounded-full text-sm font-medium transition-all"
+                                    :style="badgeFilter === 'earned' ? 'background: var(--color-primary-500); color: white;' : 'background: var(--bg-muted); color: var(--text-secondary);'">
+                                Earned
+                            </button>
+                            <button @click="badgeFilter = 'locked'"
+                                    class="px-3 py-1.5 rounded-full text-sm font-medium transition-all"
+                                    :style="badgeFilter === 'locked' ? 'background: var(--color-primary-500); color: white;' : 'background: var(--bg-muted); color: var(--text-secondary);'">
+                                Locked
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        <template x-for="badge in filteredBadges" :key="badge.id">
+                            <div class="badge-card p-4 rounded-xl text-center cursor-pointer"
+                                 :class="badge.earned ? '' : 'locked'"
+                                 :style="badge.earned ? 'background: var(--bg-muted);' : 'background: var(--bg-surface); border: 1px dashed var(--border-default);'"
+                                 @click="showBadgeDetails(badge)">
+                                <div class="text-4xl mb-2" x-text="badge.icon"></div>
+                                <p class="font-medium text-sm truncate" style="color: var(--text-primary);" x-text="badge.name"></p>
+                                <p class="text-xs mt-1" :style="badge.earned ? 'color: var(--color-primary-500);' : 'color: var(--text-muted);'"
+                                   x-text="badge.earned ? 'Earned!' : badge.requirement"></p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- PATHS SECTION -->
+                <div class="card-glass p-6 mb-8">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 class="text-lg font-bold" style="color: var(--text-primary);">Growth Paths</h3>
+                            <p class="text-sm" style="color: var(--text-secondary);">Your journey through Maslow's Hierarchy</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <template x-for="(path, index) in paths" :key="path.id">
+                            <div class="p-4 rounded-xl transition-all cursor-pointer hover:shadow-sm"
+                                 :style="path.active ? 'background: ' + path.color + '15; border: 1px solid ' + path.color + '40;' : 'background: var(--bg-muted); border: 1px solid var(--border-default);'"
+                                 @click="expandedPath = expandedPath === path.id ? null : path.id">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-14 h-14 rounded-xl flex items-center justify-center text-2xl"
+                                         :style="'background: ' + path.color + '22'">
+                                        <span x-text="path.icon"></span>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 mb-1">
+                                            <p class="font-semibold" style="color: var(--text-primary);" x-text="path.name"></p>
+                                            <span x-show="path.active" class="text-xs px-2 py-0.5 rounded-full"
+                                                  :style="'background: ' + path.color + '22; color: ' + path.color">Active</span>
+                                            <span x-show="path.completed" class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-600">Complete</span>
+                                            <span x-show="!path.unlocked" class="text-xs px-2 py-0.5 rounded"
+                                                  style="background: var(--bg-muted); color: var(--text-muted);">Locked</span>
+                                        </div>
+                                        <p class="text-sm truncate" style="color: var(--text-secondary);" x-text="path.description"></p>
+                                        <!-- Progress bar -->
+                                        <div class="mt-2">
+                                            <div class="h-2 rounded-full overflow-hidden" style="background: var(--bg-surface);">
+                                                <div class="h-full rounded-full transition-all"
+                                                     :style="'width: ' + path.progress + '%; background: ' + path.color"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex-shrink-0 text-right">
+                                        <p class="text-lg font-bold" :style="'color: ' + path.color" x-text="path.progress + '%'"></p>
+                                        <p class="text-xs" style="color: var(--text-muted);"
+                                           x-text="path.stepsCompleted + '/' + path.totalSteps + ' steps'"></p>
+                                    </div>
+                                    <svg class="w-5 h-5 transition-transform"
+                                         :class="expandedPath === path.id ? 'rotate-180' : ''"
+                                         fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--text-muted);">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                    </svg>
+                                </div>
+
+                                <!-- Expanded Details -->
+                                <div x-show="expandedPath === path.id" x-collapse class="mt-4 pt-4" style="border-top: 1px solid var(--border-default);">
+                                    <p class="text-sm mb-4" style="color: var(--text-secondary);" x-text="path.longDescription"></p>
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                        <template x-for="step in path.steps" :key="step.name">
+                                            <div class="flex items-center gap-2 p-2 rounded-lg"
+                                                 :style="step.completed ? 'background: ' + path.color + '15;' : 'background: var(--bg-surface);'">
+                                                <span x-text="step.completed ? '✅' : '⬜'" class="text-lg"></span>
+                                                <span class="text-sm"
+                                                      :style="step.completed ? 'color: var(--text-primary);' : 'color: var(--text-muted);'"
+                                                      x-text="step.name"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- WEEKLY ACTIVITY -->
+                <div class="card-glass p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h3 class="text-lg font-bold" style="color: var(--text-primary);">This Week</h3>
+                            <p class="text-sm" style="color: var(--text-secondary);">Your activity over the past 7 days</p>
+                        </div>
+                        <p class="text-sm font-medium" style="color: var(--color-primary-500);">
+                            <span x-text="weeklyXP"></span> XP earned
+                        </p>
+                    </div>
+
+                    <div class="grid grid-cols-7 gap-2">
+                        <template x-for="(day, index) in weeklyActivity" :key="index">
+                            <div class="text-center">
+                                <p class="text-xs mb-2 font-medium" style="color: var(--text-muted);" x-text="day.label"></p>
+                                <div class="h-24 rounded-lg flex items-end justify-center p-1"
+                                     style="background: var(--bg-muted);">
+                                    <div class="w-full rounded transition-all"
+                                         :style="'height: ' + (day.activity * 100) + '%; background: linear-gradient(to top, var(--color-primary-500), var(--color-accent-500));'">
+                                    </div>
+                                </div>
+                                <p class="text-xs mt-2 font-medium"
+                                   :style="day.isToday ? 'color: var(--color-primary-500);' : 'color: var(--text-secondary);'"
+                                   x-text="day.xp + ' XP'"></p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Badge Detail Modal -->
+    <div x-show="selectedBadge" x-cloak
+         class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+         @click.self="selectedBadge = null">
+        <div class="card-glass max-w-md w-full p-6 animate-fade-in" x-show="selectedBadge">
+            <div class="text-center">
+                <div class="text-6xl mb-4" x-text="selectedBadge?.icon"></div>
+                <h3 class="text-xl font-bold mb-2" style="color: var(--text-primary);" x-text="selectedBadge?.name"></h3>
+                <p class="text-sm mb-4" style="color: var(--text-secondary);" x-text="selectedBadge?.description"></p>
+                <div class="py-3 px-4 rounded-xl mb-4"
+                     :style="selectedBadge?.earned ? 'background: var(--color-primary-50); color: var(--color-primary-700);' : 'background: var(--bg-muted); color: var(--text-muted);'">
+                    <p class="text-sm font-medium" x-text="selectedBadge?.earned ? 'Earned on ' + selectedBadge?.earnedDate : 'Requirement: ' + selectedBadge?.requirement"></p>
+                </div>
+                <button @click="selectedBadge = null" class="btn-primary px-6 py-2">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function progressPage() {
+            return {
+                // Merge shared data
+                ...sharedPageData('progress'),
+
+                // Page state
+                loading: true,
+                badgeFilter: 'all',
+                expandedPath: null,
+                selectedBadge: null,
+
+                // XP & Level
+                totalXP: 0,
+                currentLevel: 1,
+                levelProgress: 0,
+                xpToNextLevel: 100,
+                weeklyXP: 0,
+
+                // Stats
+                currentStreak: 0,
+                longestStreak: 0,
+                totalHabitsCompleted: 0,
+                badgesEarned: 0,
+                journalEntries: 0,
+                moodLogs: 0,
+                goalsCompleted: 0,
+                daysActive: 0,
+
+                // Weekly Activity
+                weeklyActivity: [],
+
+                // Badges
+                allBadges: [
+                    { id: 'first_steps', icon: '👶', name: 'First Steps', description: 'Complete your first habit', requirement: '1 habit', earned: false },
+                    { id: 'early_bird', icon: '🐦', name: 'Early Bird', description: 'Complete a morning habit 7 days in a row', requirement: '7-day streak', earned: false },
+                    { id: 'night_owl', icon: '🦉', name: 'Night Owl', description: 'Log your mood after 9 PM', requirement: 'Evening log', earned: false },
+                    { id: 'journaler', icon: '📝', name: 'Journaler', description: 'Write 10 journal entries', requirement: '10 entries', earned: false },
+                    { id: 'streak_master', icon: '🔥', name: 'Streak Master', description: 'Maintain a 30-day streak', requirement: '30-day streak', earned: false },
+                    { id: 'mood_tracker', icon: '😊', name: 'Mood Tracker', description: 'Log your mood 7 days in a row', requirement: '7 mood logs', earned: false },
+                    { id: 'goal_setter', icon: '🎯', name: 'Goal Setter', description: 'Set your first goal', requirement: '1 goal', earned: false },
+                    { id: 'achiever', icon: '⭐', name: 'Achiever', description: 'Complete 5 goals', requirement: '5 goals', earned: false },
+                    { id: 'centurion', icon: '💯', name: 'Centurion', description: 'Complete 100 habits', requirement: '100 habits', earned: false },
+                    { id: 'mindful', icon: '🧘', name: 'Mindful', description: 'Use a wellness tool 10 times', requirement: '10 uses', earned: false },
+                    { id: 'wellness_warrior', icon: '💪', name: 'Wellness Warrior', description: 'Reach level 10', requirement: 'Level 10', earned: false },
+                    { id: 'transcendent', icon: '✨', name: 'Transcendent', description: 'Complete all Maslow paths', requirement: 'All paths', earned: false },
+                ],
+
+                // Paths
+                paths: [
+                    {
+                        id: 'physiological',
+                        name: 'Physiological',
+                        icon: '🌿',
+                        color: '#ef4444',
+                        description: 'Foundation of wellbeing',
+                        longDescription: 'Master the basics: sleep, nutrition, energy, and rest. This is the foundation upon which all other growth is built.',
+                        progress: 0,
+                        stepsCompleted: 0,
+                        totalSteps: 6,
+                        unlocked: true,
+                        active: true,
+                        completed: false,
+                        steps: [
+                            { name: 'Sleep Tracker', completed: false },
+                            { name: 'Nutrition Log', completed: false },
+                            { name: 'Hydration Goal', completed: false },
+                            { name: 'Energy Check', completed: false },
+                            { name: 'Rest Day', completed: false },
+                            { name: 'Week Complete', completed: false }
+                        ]
+                    },
+                    {
+                        id: 'safety',
+                        name: 'Safety & Security',
+                        icon: '🛡️',
+                        color: '#f97316',
+                        description: 'Building stability and routine',
+                        longDescription: 'Create structure in your life through planning, organization, and building a sense of security.',
+                        progress: 0,
+                        stepsCompleted: 0,
+                        totalSteps: 6,
+                        unlocked: false,
+                        active: false,
+                        completed: false,
+                        steps: [
+                            { name: 'Daily Planning', completed: false },
+                            { name: 'Safe Space', completed: false },
+                            { name: 'Routine Builder', completed: false },
+                            { name: 'Boundary Setting', completed: false },
+                            { name: 'Financial Check', completed: false },
+                            { name: 'Week Complete', completed: false }
+                        ]
+                    },
+                    {
+                        id: 'belonging',
+                        name: 'Love & Belonging',
+                        icon: '❤️',
+                        color: '#eab308',
+                        description: 'Connection and community',
+                        longDescription: 'Strengthen your relationships and build meaningful connections with others.',
+                        progress: 0,
+                        stepsCompleted: 0,
+                        totalSteps: 6,
+                        unlocked: false,
+                        active: false,
+                        completed: false,
+                        steps: [
+                            { name: 'Reach Out', completed: false },
+                            { name: 'Gratitude Share', completed: false },
+                            { name: 'Active Listening', completed: false },
+                            { name: 'Quality Time', completed: false },
+                            { name: 'Acts of Kindness', completed: false },
+                            { name: 'Week Complete', completed: false }
+                        ]
+                    },
+                    {
+                        id: 'esteem',
+                        name: 'Esteem',
+                        icon: '🏆',
+                        color: '#22c55e',
+                        description: 'Confidence and achievement',
+                        longDescription: 'Build self-respect, confidence, and celebrate your achievements.',
+                        progress: 0,
+                        stepsCompleted: 0,
+                        totalSteps: 6,
+                        unlocked: false,
+                        active: false,
+                        completed: false,
+                        steps: [
+                            { name: 'Wins Journal', completed: false },
+                            { name: 'Skill Building', completed: false },
+                            { name: 'Self-Compassion', completed: false },
+                            { name: 'Challenge Yourself', completed: false },
+                            { name: 'Celebrate Progress', completed: false },
+                            { name: 'Week Complete', completed: false }
+                        ]
+                    },
+                    {
+                        id: 'actualization',
+                        name: 'Self-Actualization',
+                        icon: '🌟',
+                        color: '#6366f1',
+                        description: 'Purpose and meaning',
+                        longDescription: 'Discover your purpose, express your creativity, and live authentically.',
+                        progress: 0,
+                        stepsCompleted: 0,
+                        totalSteps: 6,
+                        unlocked: false,
+                        active: false,
+                        completed: false,
+                        steps: [
+                            { name: 'Values Check', completed: false },
+                            { name: 'Creative Expression', completed: false },
+                            { name: 'Flow State', completed: false },
+                            { name: 'Legacy Thinking', completed: false },
+                            { name: 'Give Back', completed: false },
+                            { name: 'Week Complete', completed: false }
+                        ]
+                    }
+                ],
+
+                get filteredBadges() {
+                    if (this.badgeFilter === 'earned') return this.allBadges.filter(b => b.earned);
+                    if (this.badgeFilter === 'locked') return this.allBadges.filter(b => !b.earned);
+                    return this.allBadges;
+                },
+
+                async init() {
+                    await this.initShared();
+                    renderSharedComponents('progress', 'Your Progress', 'Track your growth journey');
+
+                    if (this.session) {
+                        await this.fetchProgressData();
+                    }
+
+                    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+                        this.session = session;
+                        if (session) {
+                            this.userEmail = session.user.email;
+                            await this.fetchProgressData();
+                        }
+                    });
+                },
+
+                async fetchProgressData() {
+                    this.loading = true;
+
+                    try {
+                        // Fetch habit completions
+                        const { data: habits, error: habitsError } = await supabaseClient
+                            .from('habits')
+                            .select('total_completions, streak, longest_streak');
+
+                        if (!habitsError && habits) {
+                            this.totalHabitsCompleted = habits.reduce((sum, h) => sum + (h.total_completions || 0), 0);
+                            this.currentStreak = Math.max(...habits.map(h => h.streak || 0), 0);
+                            this.longestStreak = Math.max(...habits.map(h => h.longest_streak || 0), 0);
+                        }
+
+                        // Fetch mood entries count
+                        const { count: moodCount } = await supabaseClient
+                            .from('mood_entries')
+                            .select('*', { count: 'exact', head: true });
+                        this.moodLogs = moodCount || 0;
+
+                        // Fetch journal entries count
+                        const { count: journalCount } = await supabaseClient
+                            .from('journal_entries')
+                            .select('*', { count: 'exact', head: true });
+                        this.journalEntries = journalCount || 0;
+
+                        // Fetch goals
+                        const { data: goals } = await supabaseClient
+                            .from('goals')
+                            .select('is_completed');
+                        if (goals) {
+                            this.goalsCompleted = goals.filter(g => g.is_completed).length;
+                        }
+
+                        // Calculate XP (simple formula based on activity)
+                        this.totalXP = (this.totalHabitsCompleted * 10) + (this.moodLogs * 5) + (this.journalEntries * 15) + (this.goalsCompleted * 50);
+                        this.currentLevel = Math.floor(this.totalXP / 100) + 1;
+                        const xpInLevel = this.totalXP % 100;
+                        this.levelProgress = xpInLevel;
+                        this.xpToNextLevel = 100 - xpInLevel;
+
+                        // Update badges based on progress
+                        this.updateBadges();
+
+                        // Update paths based on progress
+                        this.updatePaths();
+
+                        // Generate weekly activity (mock data for now)
+                        this.generateWeeklyActivity();
+
+                        // Calculate days active (simplified)
+                        this.daysActive = Math.min(this.currentStreak + Math.floor(this.totalHabitsCompleted / 5), 365);
+
+                    } catch (error) {
+                        console.error('Error fetching progress:', error);
+                    }
+
+                    this.loading = false;
+                },
+
+                updateBadges() {
+                    // First steps
+                    if (this.totalHabitsCompleted >= 1) {
+                        this.markBadgeEarned('first_steps');
+                    }
+                    // Journaler
+                    if (this.journalEntries >= 10) {
+                        this.markBadgeEarned('journaler');
+                    }
+                    // Mood tracker
+                    if (this.moodLogs >= 7) {
+                        this.markBadgeEarned('mood_tracker');
+                    }
+                    // Goal setter
+                    if (this.goalsCompleted >= 1) {
+                        this.markBadgeEarned('goal_setter');
+                    }
+                    // Achiever
+                    if (this.goalsCompleted >= 5) {
+                        this.markBadgeEarned('achiever');
+                    }
+                    // Centurion
+                    if (this.totalHabitsCompleted >= 100) {
+                        this.markBadgeEarned('centurion');
+                    }
+                    // Streak master
+                    if (this.longestStreak >= 30) {
+                        this.markBadgeEarned('streak_master');
+                    }
+                    // Wellness warrior
+                    if (this.currentLevel >= 10) {
+                        this.markBadgeEarned('wellness_warrior');
+                    }
+
+                    this.badgesEarned = this.allBadges.filter(b => b.earned).length;
+                },
+
+                markBadgeEarned(badgeId) {
+                    const badge = this.allBadges.find(b => b.id === badgeId);
+                    if (badge && !badge.earned) {
+                        badge.earned = true;
+                        badge.earnedDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    }
+                },
+
+                updatePaths() {
+                    // Update physiological path progress
+                    const physProgress = Math.min(100, this.totalHabitsCompleted * 5);
+                    this.paths[0].progress = physProgress;
+                    this.paths[0].stepsCompleted = Math.floor(physProgress / 20);
+                    this.paths[0].steps.forEach((step, i) => {
+                        step.completed = i < this.paths[0].stepsCompleted;
+                    });
+
+                    // Unlock safety path at 50% physiological
+                    if (physProgress >= 50) {
+                        this.paths[1].unlocked = true;
+                        this.paths[1].active = physProgress >= 100;
+                        const safetyProgress = Math.min(100, Math.max(0, (physProgress - 50) * 2));
+                        this.paths[1].progress = safetyProgress;
+                        this.paths[1].stepsCompleted = Math.floor(safetyProgress / 20);
+                    }
+
+                    // Continue unlocking paths...
+                    if (this.paths[1].progress >= 50) {
+                        this.paths[2].unlocked = true;
+                    }
+                },
+
+                generateWeeklyActivity() {
+                    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                    const today = new Date().getDay();
+
+                    this.weeklyActivity = days.map((label, index) => {
+                        const isToday = index === (today === 0 ? 6 : today - 1);
+                        const activity = isToday ? 0.8 : Math.random() * 0.7 + 0.1;
+                        const xp = Math.floor(activity * 50);
+                        return { label, activity, xp, isToday };
+                    });
+
+                    this.weeklyXP = this.weeklyActivity.reduce((sum, d) => sum + d.xp, 0);
+                },
+
+                showBadgeDetails(badge) {
+                    this.selectedBadge = badge;
+                }
+            }
+        }
+    </script>
+</body>
+</html>
