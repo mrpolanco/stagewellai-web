@@ -254,7 +254,7 @@
         }
 
         section:nth-of-type(7) {
-            /* Waitlist CTA */
+            /* Download CTA */
             background: var(--pastel-rose) !important;
         }
 
@@ -556,6 +556,24 @@
         .footer-copyright {
             font-size: 16px;
             color: rgba(255, 255, 255, 0.7);
+        }
+
+        .footer-links {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+        }
+
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s ease;
+        }
+
+        .footer-links a:hover {
+            color: white;
         }
 
         .back-to-top {
@@ -914,8 +932,8 @@
                     </div>
                     <p class="subtitle">Stagewell AI uses the science of Maslow's hierarchy to understand your unique needs—then guides you through a personalized journey of real, lasting transformation.</p>
                     <p class="description">No generic advice. No one-size-fits-all programs. Just you, understood.</p>
-                    <a href="#waitlist" class="cta-button">Join the Waitlist →</a>
-                    <p class="cta-note">Be among the first to experience personalized growth.</p>
+                    <a href="https://apps.apple.com/app/id6755154394" class="cta-button">Download Free →</a>
+                    <p class="cta-note">Available now on the App Store. Free to start.</p>
                     <p class="hero-secondary-link"><a href="#how-it-works" class="text-link">Learn how Stagewell works ↓</a></p>
                 </div>
             </div>
@@ -987,12 +1005,12 @@
                 <div class="feature">
                     <div class="feature-icon">🧠</div>
                     <h3>AI Coach</h3>
-                    <p>A supportive companion that remembers your journey and adapts to your needs—available whenever you need guidance.</p>
+                    <p>A supportive companion that remembers your journey and adapts to your needs. You control what it sees—toggle health data, journal access, and name sharing in settings.</p>
                 </div>
                 <div class="feature">
                     <div class="feature-icon">📔</div>
                     <h3>Smart Journaling</h3>
-                    <p>Prompts that meet you where you are, with AI-powered insights that help you see patterns and progress.</p>
+                    <p>Prompts that meet you where you are, with AI-powered insights that help you see patterns. Includes dream journaling with symbol tracking.</p>
                 </div>
                 <div class="feature">
                     <div class="feature-icon">🎯</div>
@@ -1000,19 +1018,19 @@
                     <p>Multi-day guided journeys for sleep, stress, focus, creativity, and more—unlocked based on your readiness.</p>
                 </div>
                 <div class="feature">
-                    <div class="feature-icon">🏆</div>
-                    <h3>Meaningful Challenges</h3>
-                    <p>Build momentum with 7-day challenges designed for your current stage of growth.</p>
+                    <div class="feature-icon">❤️</div>
+                    <h3>20+ Wellness Tools</h3>
+                    <p>Mood tracking, habit streaks, breathing exercises, meditation, nutrition logging, budget tracking, exercise logs, and more—all in one place.</p>
                 </div>
                 <div class="feature">
-                    <div class="feature-icon">🌬️</div>
-                    <h3>Breathing & Grounding</h3>
-                    <p>Science-backed exercises for moments when you need calm, focus, or energy.</p>
+                    <div class="feature-icon">⌚</div>
+                    <h3>Apple Health &amp; Watch</h3>
+                    <p>Syncs with Apple Health for steps, sleep, and heart rate. Apple Watch companion for quick check-ins on the go.</p>
                 </div>
                 <div class="feature">
-                    <div class="feature-icon">📊</div>
-                    <h3>Progress You Can See</h3>
-                    <p>Track your transformation across every dimension—not just habits completed, but real growth achieved.</p>
+                    <div class="feature-icon">🔒</div>
+                    <h3>Privacy First</h3>
+                    <p>Journal entries and sensitive notes are end-to-end encrypted. Personal data stored in Keychain. Optional local AI mode keeps everything on-device.</p>
                 </div>
             </div>
         </div>
@@ -1032,28 +1050,20 @@
         </div>
     </section>
 
-    <!-- Waitlist CTA -->
-    <section id="waitlist" class="section-alt">
+    <!-- Download CTA -->
+    <section id="download" class="section-alt">
         <div class="container">
-            <p class="section-eyebrow">Early access waitlist</p>
-            <h2 class="section-title">Be first in line for a new approach to growth.</h2>
-            <p class="section-content" style="text-align: center;">Stagewell AI launches soon. Join the waitlist to:</p>
-            <ul class="benefits-list" style="max-width: 400px; margin: 24px auto;">
-                <li>Get early access before public launch</li>
-                <li>Help shape the app with your feedback</li>
+            <p class="section-eyebrow">Available now</p>
+            <h2 class="section-title">Start your growth journey today.</h2>
+            <p class="section-content" style="text-align: center;">Download Stagewell AI free and discover where you are on your growth journey.</p>
+            <ul class="benefits-list" style="max-width: 500px; margin: 24px auto;">
+                <li>Free 5-minute assessment to find your starting stage</li>
+                <li>20+ wellness tools, AI coaching, and guided paths</li>
+                <li>End-to-end encrypted journals and private notes</li>
             </ul>
-            <div class="waitlist-form">
-                <div class="form-success" id="formSuccess" role="status" aria-live="polite">
-                    Thank you! We'll notify you when Stagewell AI launches.
-                </div>
-                <form id="waitlistForm">
-                    <div class="form-group">
-                        <label for="email">Email</label>
-                        <input type="email" id="email" name="email" placeholder="your@email.com" required>
-                    </div>
-                    <button type="submit" class="form-submit">Join the Waitlist →</button>
-                    <p class="form-note">No spam. Just updates on launch and exclusive early access.</p>
-                </form>
+            <div style="text-align: center; margin-top: 40px;">
+                <a href="https://apps.apple.com/app/id6755154394" class="cta-button">Download on the App Store →</a>
+                <p class="cta-note">Free to start. Premium plans available.</p>
             </div>
         </div>
     </section>
@@ -1073,15 +1083,15 @@
                 </div>
                 <div class="faq-item">
                     <div class="faq-question">How does the AI coaching work?</div>
-                    <div class="faq-answer">Your AI coach learns from your journal entries, mood patterns, and progress to provide personalized guidance. It's like having a supportive friend who remembers everything and always knows what you need to hear.</div>
+                    <div class="faq-answer">Your AI coach learns from your journal entries, mood patterns, and progress to provide personalized guidance. You control exactly what context the AI can see—toggle health data, journal excerpts, and name sharing on or off in Settings. You can also switch to fully local AI processing for complete privacy.</div>
                 </div>
                 <div class="faq-item">
                     <div class="faq-question">What if I'm not sure where I am in my journey?</div>
-                    <div class="faq-answer">That's exactly what Stagewell helps with. Our assessment gives you clarity on your current stage—and your path forward becomes clear.</div>
+                    <div class="faq-answer">That's exactly what Stagewell helps with. A quick assessment gives you clarity on your current stage—and your path forward becomes clear.</div>
                 </div>
                 <div class="faq-item">
                     <div class="faq-question">Is my data private?</div>
-                    <div class="faq-answer">Absolutely. Your journal entries and personal data are encrypted and never shared. Your growth journey is yours alone.</div>
+                    <div class="faq-answer">Yes. Journal entries, mood notes, dreams, coaching memories, and financial notes are end-to-end encrypted with AES-256-GCM before leaving your device. Personal identifiers are stored in your device's secure Keychain. You can control what the AI coach sees, and optionally run AI entirely on-device. We never sell your data. See our <a href="privacy.html">Privacy Policy</a> for full details.</div>
                 </div>
             </div>
         </div>
@@ -1094,9 +1104,8 @@
             <h2 class="section-title">Your next chapter starts here.</h2>
             <div class="section-content" style="text-align: center;">
                 <p>Growth isn't about doing more. It's about doing what's right for you, right now.</p>
-                <p style="margin-top: 24px;">Stagewell AI is ready to meet you where you are.</p>
-                <p style="margin-top: 16px; margin-bottom: 40px;">Spots for early access are limited.</p>
-                <a href="#waitlist" class="cta-button">Join the Waitlist →</a>
+                <p style="margin-top: 24px; margin-bottom: 40px;">Stagewell AI is ready to meet you where you are.</p>
+                <a href="https://apps.apple.com/app/id6755154394" class="cta-button">Download Free →</a>
             </div>
         </div>
     </section>
@@ -1105,7 +1114,15 @@
     <footer>
         <div class="container">
             <div class="footer-tagline">Stagewell AI — Grow from where you are.</div>
-            <div class="footer-copyright">© 2025 Stagewell AI. All rights reserved.</div>
+            <div class="footer-copyright">© 2026 Rich Code Studio LLC. All rights reserved.</div>
+            <div class="footer-links">
+                <a href="terms.html">Terms of Service</a>
+                <a href="privacy.html">Privacy Policy</a>
+                <a href="support.html">Support</a>
+            </div>
+            <div style="margin-top: 20px; font-size: 12px; color: rgba(255, 255, 255, 0.5);">
+                Food data provided by <a href="https://world.openfoodfacts.org" style="color: rgba(255, 255, 255, 0.6);">Open Food Facts</a> contributors under <a href="https://world.openfoodfacts.org/terms-of-use" style="color: rgba(255, 255, 255, 0.6);">ODbL license</a>.
+            </div>
         </div>
     </footer>
 
@@ -1126,49 +1143,7 @@
             });
         });
 
-        // Waitlist form handling
-        const form = document.getElementById('waitlistForm');
-        const formSuccess = document.getElementById('formSuccess');
-        const emailInput = document.getElementById('email');
         const backToTop = document.getElementById('backToTop');
-
-        form.addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            const email = emailInput.value.trim();
-
-            if (!email) {
-                return;
-            }
-
-            // Here you would typically send the email to your backend
-            // For now, we'll just show a success message
-            try {
-                // TODO: Replace with actual API endpoint
-                // await fetch('/api/waitlist', {
-                //     method: 'POST',
-                //     headers: { 'Content-Type': 'application/json' },
-                //     body: JSON.stringify({ email })
-                // });
-
-                // Simulate API call
-                await new Promise(resolve => setTimeout(resolve, 500));
-
-                formSuccess.classList.add('show');
-                form.reset();
-
-                // Scroll to success message
-                formSuccess.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-                // Hide success message after 5 seconds
-                setTimeout(() => {
-                    formSuccess.classList.remove('show');
-                }, 5000);
-            } catch (error) {
-                console.error('Error submitting form:', error);
-                alert('Something went wrong. Please try again.');
-            }
-        });
 
         // Back to top button
         if (backToTop) {
